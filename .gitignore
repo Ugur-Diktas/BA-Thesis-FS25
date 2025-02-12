@@ -1,0 +1,9 @@
+# in case a repository is created, ignore the following files
+
+0_Previous_Projects/*
+1_data/raw/*
+1_data/processed/*
+1_data/backup/*
+1_data/to_merge/*
+1_data/sensitive/*
+3_logfiles/*
