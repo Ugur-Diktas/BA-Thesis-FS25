@@ -11,7 +11,7 @@
 //    1) Preserve current working directory and cd into the raw data folder
 //    2) Find file matching ^PoF_PS_Students*.sav
 //    3) Import SPSS using that .sav
-//    4) Run advanced anonymising steps
+//    4) Run advanced anonymising steps (incl. remove duplicates)
 //    5) Save sensitive data & anonymised data, then restore the original directory
 //
 // Requires: 
@@ -61,20 +61,40 @@ di as txt "INFO: Imported PS Students data from `stufile' with `=_N' obs."
 // 4) Advanced anonymising steps
 // ----------------------------------------------------------------------------
 
-// Timer (optional)
+// 4.1 Timer (optional)
 timer clear
 timer on 1
 
-// Set seed if randomisation is used
+// 4.2 Set seed if randomisation is used
 set seed 123
 
-// 4.1 Duplicates on ResponseId
+// 4.3 Check duplicates on ResponseId (from second file's approach)
+//     Replace the original "assert" mechanism with the drop-based approach.
 duplicates report ResponseId, list
 duplicates tag ResponseId, gen(dup_ResponseId)
-assert dup_ResponseId == 0
+
+quietly count if dup_ResponseId > 0
+if r(N) > 0 {
+    di as txt "INFO: Dropping `r(N)' duplicates on ResponseId"
+    drop if dup_ResponseId > 0
+}
+else {
+    di as txt "INFO: No duplicates found on ResponseId"
+}
 drop dup_ResponseId
 
-// 4.2 Drop test responses identified by sensitive data or known e-mails
+// 4.4 (Optional) Exclude missing e-mail if needed (from second file's approach)
+//     This is only done if you truly want to drop any obs that have missing email.
+capture confirm variable compl_email
+if _rc == 0 {
+    quietly count if missing(compl_email)
+    if r(N) > 0 {
+        di as txt "INFO: Dropping `r(N)' obs that have missing compl_email"
+        drop if missing(compl_email)
+    }
+}
+
+// 4.5 Drop test responses identified by known e-mails or names
 drop if email == "daphne.rutnam@econ.uzh.ch"
 drop if email == "hannah.massenbauer@econ.uzh.ch"
 drop if email == "anne.brenoe@econ.uzh.ch"
@@ -87,9 +107,7 @@ drop if strpos(email, "uzh.ch") >= 0
 drop if name_child_1 == "test" | name_child_1 == "Test"
 drop if name_child_2 == "test" | name_child_2 == "Test"
 
-// 4.3 Duplicates cleaning
-
-* First check if there are any non-empty emails
+// 4.6 Identify duplicates or grouping on email and name (the existing mechanism)
 quietly count if !missing(email)
 if r(N) > 0 {
     duplicates report email if !missing(email)
@@ -102,8 +120,6 @@ else {
     gen email_group = .
 }
 
-// Name duplicates check
-* Check if there are any complete name pairs
 quietly count if !missing(name_child_1) & !missing(name_child_2)
 if r(N) > 0 {
     duplicates report name_child_1 name_child_2 if !missing(name_child_1) & !missing(name_child_2)
@@ -116,14 +132,14 @@ else {
     gen name_group = .
 }
 
-// 4.4 Generate indicators
-gen compl_email = (email != "")
+// 4.7 Generate indicators (unchanged)
+gen compl_email = (email != "")             if !_rc
 label variable compl_email "Gave email address"
 
 gen compl_first_name = !missing(name_child_1)
 gen compl_last_name  = !missing(name_child_2)
 
-// 4.5 Save sensitive data only
+// 4.8 Save sensitive data only
 local sens_vars "IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_2"
 
 preserve
@@ -147,12 +163,12 @@ preserve
     save "${sensitive_data}/ps_stu_sensitive_only", replace
 restore
 
-// 4.6 Save anonymised data
+// 4.9 Save anonymised data
 drop `sens_vars'
 save "${processed_data}/PS_Students/ps_stu_all_anon.dta", replace
 di as txt "INFO: Created anonymised dataset for PS_Students -> ps_stu_all_anon.dta."
 
-// Timer end
+// 4.10 Timer end
 timer off 1
 timer list 1
 
