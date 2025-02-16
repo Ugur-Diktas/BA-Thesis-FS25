@@ -29,6 +29,10 @@ global dodir_log       "${root}/3_logfiles"
 global dodir_par_stu   "${root}/2_code/PS_Students"
 global dodir_par_par   "${root}/2_code/PS_Parents"
 
+// Assets
+
+global assets "${root}/4_assets/Parental_occupation_cleaning_new"
+
 ********************************************************************************
 // Additional parameters
 ********************************************************************************
