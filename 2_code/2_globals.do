@@ -11,7 +11,7 @@
 //     in the folder: 1_data/raw
 //   - No date or user input is needed; the code runs automatically.
 //
-// Author: Ugur Diktas_Jelke CLarysse, BA Thesis FS25, 12.02.2025
+// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 12.02.2025
 ********************************************************************************
 
 // Subfolders
@@ -39,3 +39,4 @@ global assets "${root}/4_assets/Parental_occupation_cleaning_new"
 
 * e.g., whether or not to re-download data
 global download_ps "no"
+global debug "yes"
