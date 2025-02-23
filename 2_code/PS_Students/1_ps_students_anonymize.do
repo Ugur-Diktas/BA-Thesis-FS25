@@ -2,7 +2,12 @@
 // 1_ps_students_anonymize.do
 // Purpose : Imports raw PS Students data, drops test responses, removes ResponseID duplicates,
 //           saves sensitive data, and generates anonymized dataset with compliance indicators.
-// Author  : Ugur Diktas, BA Thesis FS25, 12.02.2025
+// Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 12.02.2025
+********************************************************************************
+
+
+********************************************************************************
+// 0. HOUSEKEEPING
 ********************************************************************************
 
 clear all
@@ -12,6 +17,10 @@ version 17.0
 // Start logging
 cap log close
 log using "${dodir_log}/ps_students_anonymize.log", replace
+
+********************************************************************************
+// 1. LOAD THE DATA
+********************************************************************************
 
 // Preserve current directory
 local initial_dir "`c(pwd)'"
@@ -26,17 +35,31 @@ if `:word count `stufile'' == 0 {
 }
 import spss using "`:word 1 of `stufile''", clear
 
-// Drop test responses
+********************************************************************************
+// 2. DROP TEST DATA 
+********************************************************************************
+
+//drop e-mails and tests 
 drop if inlist(email, "daphne.rutnam@econ.uzh.ch", "hannah.massenbauer@econ.uzh.ch", "anne.brenoe@econ.uzh.ch", "gianluca.spina@bluewin.ch", "cambriadaniele@gmail.com", "hannah.massenbauer@gmail.com", "daphne.rutnam@gmail.com") | strpos(email, "uzh.ch") > 0
 drop if inlist(name_child_1, "test", "Test") | inlist(name_child_2, "test", "Test")
 
-// Check ResponseId duplicates
+// Drop preview responses
+
+drop if Status == 1
+
+********************************************************************************
+// 3. CHECK DUPLICATES
+********************************************************************************
+
 duplicates tag ResponseId, gen(dup_responseid)
 if `r(N)' > 0 {
     di "Dropping `r(N)' duplicates on ResponseId"
     drop if dup_responseid > 0
 }
 drop dup_responseid
+********************************************************************************
+// 4. PREPARE DUPLICATES CLEANING
+********************************************************************************
 
 // Generate compliance indicators
 gen compl_email      = !missing(email)
@@ -46,6 +69,10 @@ label var compl_email      "Provided email"
 label var compl_first_name "Provided first name"
 label var compl_last_name  "Provided last name"
 
+********************************************************************************
+// 5.SENSITIVE DATA ONLY
+********************************************************************************
+
 // Save sensitive data
 preserve
     keep ResponseId IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_2
@@ -53,9 +80,12 @@ preserve
     destring location_lat location_long, replace
     save "${sensitive_data}/ps_stu_sensitive_only.dta", replace
 restore
-
 // Drop sensitive vars and save anonymized data
 drop IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_2
+
+********************************************************************************
+// 6. FINAL HOUSEKEEPING & SAVE
+********************************************************************************
 save "${processed_data}/PS_Students/ps_stu_all_anon.dta", replace
 
 // Restore directory and close log

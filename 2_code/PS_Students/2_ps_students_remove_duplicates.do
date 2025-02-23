@@ -2,7 +2,7 @@
 // 2_ps_students_remove_duplicates.do
 // Purpose : Merges with sensitive data to identify duplicates based on email/names,
 //           removes non-first responses, and saves cleaned dataset.
-// Author  : Ugur Diktas, BA Thesis FS25, 12.02.2025
+// Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 12.02.2025
 ********************************************************************************
 
 clear all
