@@ -1,30 +1,43 @@
 ********************************************************************************
-// 3_ps_students_clean_beliefs.do
-// Purpose : Cleans & processes the belief-related questions in the PS Students 
-//           dataset. Includes built-in debug steps to handle naming issues.
-// 
-// Author  : Ugur Diktas_Jelke Clarysse, BA Thesis FS25, 18.02.2025
+* 3_ps_students_clean_beliefs.do
+* 
+* Purpose : 
+*   - Load the cleaned PS Students dataset (ps_stu_cleaned).
+*   - Rename and reshape the belief-related variables (marriage_prob, belief_fit,
+*     mother/father approvals, etc.) into occupation-specific variables.
+*   - Label them, create standardized versions for “GC” (gender-consistent)
+*     and “GIC” (gender-inconsistent) occupations (similar to code in 4_2).
+*   - Save the updated dataset.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 19.02.2025
+* Version: Stata 18
 ********************************************************************************
 
 ********************************************************************************
-// 0. HOUSEKEEPING
+* 0. HOUSEKEEPING
 ********************************************************************************
 
 clear all
 set more off
-version 17.0
+version 18.0
 
+// Conditionally enable or disable trace using global debug
+if "${debug}" == "yes" {
+    set trace on
+} 
+else {
+    set trace off
+}
+
+// Start logging
 cap log close
 log using "${dodir_log}/ps_students_clean_beliefs.log", replace text
-
-// Turn on Stata's trace for very detailed debugging (comment out if too verbose).
-// set trace on
 
 timer clear
 timer on 1
 
 ********************************************************************************
-// 1. LOAD THE CLEANED DATA
+* 1. LOAD THE CLEANED DATA
 ********************************************************************************
 
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
@@ -39,213 +52,210 @@ if _N == 0 {
 }
 
 ********************************************************************************
-// 2. DEBUG STEP 1: RENAMING ESSENTIAL VARIABLES 
+* 2. RENAME / PREP BELIEF VARIABLES
 ********************************************************************************
 
-// RENAME MARRIAGE//
-
+// Example: rename marriage probability variables
 rename marriage_prob_fit_1 marriage_prob_1
 rename marriage_prob_fit_2 marriage_prob_2
 
-//RENAME BELIEF//
-
-foreach belief_q_var in "belief_fit" "like_task" {
-	forval i = 1/2 {
-		rename `belief_q_var'__`i' `belief_q_var'_`i'
-	}
+// Example: rename the belief-fit & like-task variables from Qualtrics
+// to a simpler pattern (similar to 4_2 approach)
+foreach belief_q_var in belief_fit like_task {
+    forval i = 1/2 {
+        // e.g. rename belief_fit__1 -> belief_fit_1
+        // if you have "belief_q_var'__`i'", confirm actual naming
+        rename `belief_q_var'__`i' `belief_q_var'_`i'
+    }
 }
-// RENAME MOTHER AND FATHER APPROVAL// 
 
-//** Here I took the code from Daphne-as mother approval and father approval is not clear 
+// Example: rename mother/father approval sets
+// (TODO: adjust to actual existing variables)
 forval i = 1/2 {
-	
-	replace mother_approval_1new_`i' = mother_approval_1__`i' if missing(mother_approval_1new_`i')
-	replace mother_approval_2new_`i' = mother_approval_2_`i' if missing(mother_approval_2new_`i')
-	gen mother_approval_`i' = mother_approval_1new_`i' if !missing(mother_approval_1new_`i')
-	replace mother_approval_`i' = mother_approval_2new_`i' if !missing(mother_approval_2new_`i')
-	
-	replace father_approval_new_`i' = father_approval__`i' if missing(father_approval_new_`i')
-	gen father_approval_`i' = father_approval_new_`i'
+    // Use missing() check to fill mother_approval_1new_i from mother_approval_1__i, etc.
+    replace mother_approval_1new_`i' = mother_approval_1__`i' if missing(mother_approval_1new_`i')
+    replace mother_approval_2new_`i' = mother_approval_2_`i'     if missing(mother_approval_2new_`i')
+    gen mother_approval_`i' = mother_approval_1new_`i' if !missing(mother_approval_1new_`i')
+    replace mother_approval_`i' = mother_approval_2new_`i' if !missing(mother_approval_2new_`i')
+    
+    replace father_approval_new_`i' = father_approval__`i' if missing(father_approval_new_`i')
+    gen father_approval_`i' = father_approval_new_`i'
 }
 
-drop mother_approval_1new* mother_approval_2new* mother_approval_1__* mother_approval_2_* father_approval__* father_approval_new*
-
+// Drop leftover placeholders
+drop mother_approval_1new* mother_approval_2new* mother_approval_1__* mother_approval_2_* ///
+     father_approval__* father_approval_new*
 
 ********************************************************************************
-// 4. CLEAN BELIEF VARIABLES
+* 3. EXPAND BELIEF QUESTIONS INTO OCC-SPECIFIC VARIABLES
 ********************************************************************************
 
-*Student's beliefs
-loc name_belief_fit "Belief fit"
-loc name_like_task "Belief like tasks"
-loc name_marriage_prob "Belief marriage probability"
-loc name_future_fit "Belief future happiness"
-
-//LOOP THROUGH BELIEF VARIABLE AND ALLOCATES TO CORRECT JOB//
-
-gen traditional_role_3 = ""
-gen traditional_role_4 = ""
-
+// (A) Belief Fit, Like Task, etc. that each have 2 separate variables
 foreach q_var in belief_fit like_task {
-	
-	* Belief about fit to same gender occupation/opp gender occupation
-	forval j = 2/7 {
-		gen `q_var'_occ`j' = .
-	}
+    
+    // Create placeholders for the occupation-coded versions
+    forval j = 2/7 {
+        gen `q_var'_occ`j' = .
+    }
 
-	lab var `q_var'_occ2 "`name_`q_var'' FaGe"
-	lab var `q_var'_occ3 "`name_`q_var'' FaBe"
-	lab var `q_var'_occ4 "`name_`q_var'' MPA"
-	lab var `q_var'_occ5 "`name_`q_var'' Informatiker/-in"
-	lab var `q_var'_occ6 "`name_`q_var'' Konstrukteur/-in"
-	lab var `q_var'_occ7 "`name_`q_var'' Polymechaniker/-in" 	
-	
-	forvalues i = 1/2 {
-   
-		replace `q_var'_occ2 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Gesundheit (FaGe)" | traditional_role_`i' == "Fachmann Gesundheit (FaGe)"
-   
-		replace `q_var'_occ3 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Betreuung (FaBe)" | traditional_role_`i' == "Fachmann Betreuung (FaBe)"
-   
-		replace `q_var'_occ4 = `q_var'_`i' if traditional_role_`i' == "Medizinischer Praxisassistent (MPA)" | traditional_role_`i' == "Medizinische Praxisassistentin (MPA)"
-   
-		replace `q_var'_occ5 = `q_var'_`i' if traditional_role_`i' == "Informatiker" | traditional_role_`i' == "Informatikerin"
-   
-		replace `q_var'_occ6 = `q_var'_`i' if traditional_role_`i' == "Konstrukteur" | traditional_role_`i' == "Konstrukteurin"
-   
-		replace `q_var'_occ7 = `q_var'_`i' if traditional_role_`i' == "Polymechaniker" | traditional_role_`i' == "Polymechanikerin"
-	}
-	
-	drop `q_var'_1 `q_var'_2 
-	
+    // Label them (FaGe, FaBe, MPA, Informatiker, Konstrukteur, Polymechaniker, etc.)
+    label var `q_var'_occ2' "Belief: `q_var' for FaGe"
+    label var `q_var'_occ3' "Belief: `q_var' for FaBe"
+    label var `q_var'_occ4' "Belief: `q_var' for MPA"
+    label var `q_var'_occ5' "Belief: `q_var' for Informatiker/-in"
+    label var `q_var'_occ6' "Belief: `q_var' for Konstrukteur/-in"
+    label var `q_var'_occ7' "Belief: `q_var' for Polymechaniker/-in"
+    
+    // For each of the 2 separate question-variables we have
+    // e.g. belief_fit_1, belief_fit_2, we fill in the relevant occ
+    forval i = 1/2 {
+        replace `q_var'_occ2 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Gesundheit (FaGe)" | ///
+                                               traditional_role_`i' == "Fachmann Gesundheit (FaGe)"
+        replace `q_var'_occ3 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Betreuung (FaBe)" | ///
+                                               traditional_role_`i' == "Fachmann Betreuung (FaBe)"
+        replace `q_var'_occ4 = `q_var'_`i' if traditional_role_`i' == "Medizinischer Praxisassistent (MPA)" | ///
+                                               traditional_role_`i' == "Medizinische Praxisassistentin (MPA)"
+        replace `q_var'_occ5 = `q_var'_`i' if traditional_role_`i' == "Informatiker" | ///
+                                               traditional_role_`i' == "Informatikerin"
+        replace `q_var'_occ6 = `q_var'_`i' if traditional_role_`i' == "Konstrukteur" | ///
+                                               traditional_role_`i' == "Konstrukteurin"
+        replace `q_var'_occ7 = `q_var'_`i' if traditional_role_`i' == "Polymechaniker" | ///
+                                               traditional_role_`i' == "Polymechanikerin"
+    }
+    
+    // Finally drop the original 2 columns for `q_var`
+    drop `q_var'_1 `q_var'_2
 }
 
+// (B) For marriage_prob, future_fit, mother_approval, father_approval, etc.
+// that each have 2 separate variables as well:
+foreach q_var in marriage_prob future_fit mother_approval father_approval {
+    
+    // Occupation-coded placeholders
+    forval j = 2/7 {
+        gen `q_var'_occ`j' = .
+    }
+    label var `q_var'_occ2' "`q_var' for FaGe"
+    label var `q_var'_occ3' "`q_var' for FaBe"
+    label var `q_var'_occ4' "`q_var' for MPA"
+    label var `q_var'_occ5' "`q_var' for Informatiker/-in"
+    label var `q_var'_occ6' "`q_var' for Konstrukteur/-in"
+    label var `q_var'_occ7' "`q_var' for Polymechaniker/-in"
 
+    forval i = 1/2 {
+        replace `q_var'_occ2 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Gesundheit (FaGe)" | ///
+                                               traditional_role_`i' == "Fachmann Gesundheit (FaGe)"
+        replace `q_var'_occ3 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Betreuung (FaBe)" | ///
+                                               traditional_role_`i' == "Fachmann Betreuung (FaBe)"
+        replace `q_var'_occ4 = `q_var'_`i' if traditional_role_`i' == "Medizinischer Praxisassistent (MPA)" | ///
+                                               traditional_role_`i' == "Medizinische Praxisassistentin (MPA)"
+        replace `q_var'_occ5 = `q_var'_`i' if traditional_role_`i' == "Informatiker" | ///
+                                               traditional_role_`i' == "Informatikerin"
+        replace `q_var'_occ6 = `q_var'_`i' if traditional_role_`i' == "Konstrukteur" | ///
+                                               traditional_role_`i' == "Konstrukteurin"
+        replace `q_var'_occ7 = `q_var'_`i' if traditional_role_`i' == "Polymechaniker" | ///
+                                               traditional_role_`i' == "Polymechanikerin"
+    }
+    
+    drop `q_var'_1 `q_var'_2
+}
+
+// If you had any “traditional_role_3” or “traditional_role_4” placeholders, drop them
 drop traditional_role_3 traditional_role_4
 
-*Now for vars with only 2 separate vars in dataset
-foreach q_var in "marriage_prob" "future_fit" "mother_approval" "father_approval" {
-	
-	*Belief about fit to same gender occupation/opp gender occupation
-	forval j = 2/7 {
-		gen `q_var'_occ`j' = .
-	}
+********************************************************************************
+* 4. LABEL DEFINITIONS FOR THE NEW OCC VARIABLES
+********************************************************************************
 
-	lab var `q_var'_occ2 "`name_`q_var'' FaGe"
-	lab var `q_var'_occ3 "`name_`q_var'' FaBe"
-	lab var `q_var'_occ4 "`name_`q_var'' MPA"
-	lab var `q_var'_occ5 "`name_`q_var'' Informatiker/-in"
-	lab var `q_var'_occ6 "`name_`q_var'' Konstrukteur/-in"
-	lab var `q_var'_occ7 "`name_`q_var'' Polymechaniker/-in" 	
-	
-	forvalues i = 1/2 {
-   
-		replace `q_var'_occ2 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Gesundheit (FaGe)" | traditional_role_`i' == "Fachmann Gesundheit (FaGe)"
-   
-		replace `q_var'_occ3 = `q_var'_`i' if traditional_role_`i' == "Fachfrau Betreuung (FaBe)" | traditional_role_`i' == "Fachmann Betreuung (FaBe)"
-   
-		replace `q_var'_occ4 = `q_var'_`i' if traditional_role_`i' == "Medizinischer Praxisassistent (MPA)" | traditional_role_`i' == "Medizinische Praxisassistentin (MPA)"
-   
-		replace `q_var'_occ5 = `q_var'_`i' if traditional_role_`i' == "Informatiker" | traditional_role_`i' == "Informatikerin"
-   
-		replace `q_var'_occ6 = `q_var'_`i' if traditional_role_`i' == "Konstrukteur" | traditional_role_`i' == "Konstrukteurin"
-   
-		replace `q_var'_occ7 = `q_var'_`i' if traditional_role_`i' == "Polymechaniker" | traditional_role_`i' == "Polymechanikerin"
-	}
-	
-	
+// For “fit” or “like_task” type beliefs
+label define belief_q_labels ///
+    1 "Not at all" ///
+    2 "Little" ///
+    3 "Moderately" ///
+    4 "Well" ///
+    5 "Very well", replace
+
+foreach q_var in belief_fit like_task future_fit {
+    forval i = 2/7 {
+        label values `q_var'_occ`i' belief_q_labels
+    }
+}
+
+// For “marriage_prob” or “demand-like” variables
+label define demand_labels ///
+    1 "Very unlikely" ///
+    2 "Unlikely" ///
+    3 "Moderately" ///
+    4 "Likely" ///
+    5 "Very likely", replace
+
+foreach q_var in marriage_prob {
+    forval i = 2/7 {
+        label values `q_var'_occ`i' demand_labels
+    }
+}
+
+// For mother/father approvals
+label define approval_labels ///
+    1 "Very sceptical" ///
+    2 "Sceptical" ///
+    3 "Moderate" ///
+    4 "Supportive" ///
+    5 "Very supportive", replace
+
+foreach q_var in mother_approval father_approval {
+    forval i = 2/7 {
+        label values `q_var'_occ`i' approval_labels
+    }
 }
 
 ********************************************************************************
-// 5. LABEL BELIEF VARIABLES
+* 5. (OPTIONAL) CREATE STANDARDIZED VARIABLES (TODO: CHECK)
 ********************************************************************************
-// FOR BELIEF FIT, LIKE TASK AND FUTURE FIT//
-lab define belief_q_labels 1 "Not at all" 2 "Little" 3 "Moderately" 4 "Well" 5 "Very well"
 
-foreach q_var in "belief_fit" "like_task" "future_fit"{
-	forval i = 2/7 {
-		lab values `q_var'_occ`i' belief_q_labels
-	}
+label define belief_qs_ave_lab ///
+    2 "Not at all" 3 "Not at all/little" 4 "Little" 5 "Little/moderately" 6 "Moderately" ///
+    7 "Moderately/well" 8 "Well" 9 "Well/very well" 10 "Very well", replace
+
+// Example for the “belief_fit” variable
+//   1) row-mean of female-coded occs => `_fem_ave`
+//   2) row-mean of male-coded occs => `_mal_ave`
+//   3) Then store them in `_gc_ave` or `_gic_ave` depending on whether
+//      the respondent is female (==1) or not.
+
+foreach q_var in belief_fit like_task marriage_prob future_fit mother_approval father_approval {
+    
+    // (a) row-mean of “female-coded” occ: 2,3,4
+    egen `q_var'_fem_ave = rowmean(`q_var'_occ2 `q_var'_occ3 `q_var'_occ4)
+    
+    // (b) row-mean of “male-coded” occ: 5,6,7
+    egen `q_var'_mal_ave = rowmean(`q_var'_occ5 `q_var'_occ6 `q_var'_occ7)
+    
+    // (c) Create two final “averages” for gender-consistent vs. gender-inconsistent
+    gen `q_var'_gc_ave = .
+    gen `q_var'_gic_ave = .
+    
+    // If female == 1, “GC” is the female-coded occ, “GIC” is male-coded
+    replace `q_var'_gc_ave = 2*`q_var'_fem_ave if female == 1
+    replace `q_var'_gc_ave = 2*`q_var'_mal_ave if female == 0
+    
+    replace `q_var'_gic_ave = 2*`q_var'_fem_ave if female == 0
+    replace `q_var'_gic_ave = 2*`q_var'_mal_ave if female == 1
+    
+    // (d) drop intermediate
+    drop `q_var'_fem_ave `q_var'_mal_ave
+    
+    // (e) label them
+    label var `q_var'_gc_ave "Average `q_var': GC occupations"
+    label var `q_var'_gic_ave "Average `q_var': GIC occupations"
+    
+    // (f) attach the label scale
+    label values `q_var'_gc_ave belief_qs_ave_lab
+    label values `q_var'_gic_ave belief_qs_ave_lab
 }
-//FOR MARRIAGE PROBABILITY//
-label define demand_labels 1 "Very unlikely" 2 "Unlikely" 3 "Moderately" 4 "Likely" 5 "Very likely"
-
-foreach q_var in "marriage_prob" {
-	forvalues i = 2/7 {
-		label values `q_var'_occ`i' demand_labels
-	}
-}
-//APPROVAL PARENTS//
-lab define approval_labels 1 "Very sceptical" 2 "Sceptical" 3 "Moderate" 4 "Supportive" 5 "Very supportive"
-
-foreach q_var in "mother_approval" "father_approval" {
-	forval i = 2/7 {
-		label values `q_var'_occ`i' approval_labels
-	}
-}
-
-********************************************************************************
-// 6.CREATE STANDARADIZED VARIABLES 
-*cuurently all Daphne her code, I have no clue why it doesnt work
-********************************************************************************
-/*
-loc name_belief_fit "Average belief fit"
-loc name_like_task "Average belief like tasks"
-loc name_marriage_prob "Average belief marriage prob"
-loc name_future_fit "Average belief future happiness"
-
-lab define belief_qs_ave_lab 2 "Not at all" 3 "Not at all/little" 4 "Little" 5 "Little/moderately" 6 "Moderately" 7 "Moderately/well" 8 "Well" 9 "Well/very well" 10 "Very well"
-
-foreach q_var in "belief_fit" "like_task" "marriage_prob" "future_fit" {
-	
-	egen `q_var'_fem_ave = rowmean(`q_var'_occ2 `q_var'_occ3 `q_var'_occ4)
-	egen `q_var'_mal_ave = rowmean(`q_var'_occ5 `q_var'_occ6 `q_var'_occ7)
-	
-	gen `q_var'_gc_ave = .
-	gen `q_var'_gic_ave = .
-	
-	replace `q_var'_gc_ave = 2*`q_var'_fem_ave if female == 1
-	replace `q_var'_gc_ave = 2*`q_var'_mal_ave if female == 0
-	
-	replace `q_var'_gic_ave = 2*`q_var'_fem_ave if female == 0
-	replace `q_var'_gic_ave = 2*`q_var'_mal_ave if female == 1
-	
-	drop `q_var'_fem_ave `q_var'_mal_ave
-	
-	lab var `q_var'_gc_ave "`name_`q_var'' to GC occs"
-	lab var `q_var'_gic_ave "`name_`q_var'' to GIC occs"
-	
-	lab values `q_var'_gc_ave belief_qs_ave_lab
-	lab values `q_var'_gic_ave belief_qs_ave_lab
-	
-}
-
-foreach q_var in "mother_approval" "father_approval" {
-	
-	egen `q_var'_fem_ave = rowmean(`q_var'_occ2 `q_var'_occ3 `q_var'_occ4)
-	egen `q_var'_mal_ave = rowmean(`q_var'_occ5 `q_var'_occ6 `q_var'_occ7)
-	
-	gen `q_var'_gc = .
-	gen `q_var'_gic = .
-	
-	replace `q_var'_gc = `q_var'_fem_ave if female == 1
-	replace `q_var'_gc = `q_var'_mal_ave if female == 0
-	
-	replace `q_var'_gic = `q_var'_fem_ave if female == 0
-	replace `q_var'_gic = `q_var'_mal_ave if female == 1
-	
-	drop `q_var'_fem_ave `q_var'_mal_ave
-
-	lab var `q_var'_gc "`name_`q_var'' for GC occ"
-	lab var `q_var'_gic "`name_`q_var'' for GIC occ"
-	
-	lab values `q_var'_gc approval_labels
-	lab values `q_var'_gic approval_labels
-
-}
-*/
 
 ********************************************************************************
-// 7. FINAL HOUSEKEEPING & SAVE
+* 6. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
 
 di as txt "----- Compressing and saving dataset -----"
@@ -256,8 +266,4 @@ save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
 timer off 1
 timer list
 
-// Turn off trace if you turned it on earlier.
-// set trace off
-
 log close
-
