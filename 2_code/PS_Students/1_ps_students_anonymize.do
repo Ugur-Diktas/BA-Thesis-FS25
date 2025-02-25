@@ -4,8 +4,8 @@
 * Purpose: 
 *   - Import **all** PS Students .sav files (finished & unfinished) using a 
 *     wildcard approach (PoF_PS_Students*.sav).
-*   - Remove test/preliminary responses.
-*   - Identify duplicates and produce compliance indicators (email, names).
+*   - Remove test/preliminary responses (by email, test names, preview status,
+*     and official StartDate).
 *   - Save sensitive data (IP, location, email, names) to a separate file.
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
@@ -82,9 +82,15 @@ use `combined', clear   // final combined dataset in memory
 cd "`initial_dir'"      // revert to original directory
 
 ********************************************************************************
-* 2. DROP TEST DATA
+* 2. DROP TEST ANSWERS
+*    - Remove test/preliminary responses based on:
+*         a) Email addresses (and domains)
+*         b) Test names in name_child_1 and name_child_2
+*         c) Qualtrics preview responses (Status == 1)
+*         d) Responses before a given StartDate
 ********************************************************************************
 
+* Drop test emails and any responses containing "uzh.ch"
 drop if inlist(email, ///
     "daphne.rutnam@econ.uzh.ch", ///
     "hannah.massenbauer@econ.uzh.ch", ///
@@ -95,33 +101,15 @@ drop if inlist(email, ///
     "daphne.rutnam@gmail.com") ///
     | strpos(email, "uzh.ch") > 0
 
+* Drop test responses based on test names
 drop if inlist(name_child_1, "test", "Test") | inlist(name_child_2, "test", "Test")
 
-* Drop Qualtrics preview (Status == 1)
+* Drop Qualtrics preview responses
 drop if Status == 1
 
-********************************************************************************
-* 3. CHECK DUPLICATES ON ResponseId
-********************************************************************************
-
-duplicates tag ResponseId, gen(dup_responseid)
-if `r(N)' > 0 {
-    di "Dropping `r(N)' duplicates on ResponseId"
-    drop if dup_responseid > 0
-}
-drop dup_responseid
-
-********************************************************************************
-* 4. PREPARE DUPLICATES CLEANING
-********************************************************************************
-
-gen compl_email      = !missing(email)
-gen compl_first_name = !missing(name_child_1)
-gen compl_last_name  = !missing(name_child_2)
-
-label var compl_email      "Provided email"
-label var compl_first_name "Provided first name"
-label var compl_last_name  "Provided last name"
+* Drop responses before the official start date
+format StartDate %tc
+drop if StartDate < clock("2024-11-11 10:00:00", "YMDhms")
 
 ********************************************************************************
 * 5. SENSITIVE DATA ONLY

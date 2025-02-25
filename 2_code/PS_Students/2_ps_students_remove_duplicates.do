@@ -2,12 +2,13 @@
 * 2_ps_students_remove_duplicates.do
 * 
 * Purpose : 
-*   - Load anonymized PS Students data
-*   - Merge with sensitive data to check duplicates on email or name
-*   - Remove non-first responses in each duplicate group
-*   - Save cleaned dataset
+*   - Load anonymised PS Students data.
+*   - Remove duplicate responses based on ResponseId.
+*   - Merge with sensitive data to check duplicates on email or name.
+*   - Remove non-first responses in each duplicate group.
+*   - Save cleaned dataset.
 *
-* Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 12.02.2025
+* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 12.02.2025
 * Version : Stata 18
 ********************************************************************************
 
@@ -19,7 +20,7 @@ clear all
 set more off
 version 18.0
 
-// Conditionally enable or disable trace using global `debug`
+* Conditionally enable or disable trace using global `debug`
 if "${debug}" == "yes" {
     set trace on
 } 
@@ -27,7 +28,7 @@ else {
     set trace off
 }
 
-// Start logging
+* Start logging
 cap log close
 log using "${dodir_log}/ps_students_remove_duplicates.log", replace text
 
@@ -37,6 +38,14 @@ log using "${dodir_log}/ps_students_remove_duplicates.log", replace text
 
 use "${processed_data}/PS_Students/ps_stu_all_anon.dta", clear
 
+* Remove duplicate ResponseId records:
+duplicates tag ResponseId, gen(dup_responseid)
+if `r(N)' > 0 {
+    di "Dropping `r(N)' duplicates on ResponseId"
+    drop if dup_responseid > 0
+}
+drop dup_responseid
+
 ********************************************************************************
 * 2. MERGE SENSITIVE DATA FOR DUPLICATE CHECKS
 ********************************************************************************
@@ -45,7 +54,7 @@ merge 1:1 ResponseId using "${sensitive_data}/ps_stu_sensitive_only.dta", ///
     keep(match master) keepusing(email stu_first_name stu_last_name) nogen
 
 ********************************************************************************
-* 3. CHECK DUPLICATES
+* 3. CHECK DUPLICATES BASED ON EMAIL AND NAMES
 ********************************************************************************
 
 * Email duplicates
@@ -58,17 +67,18 @@ duplicates tag stu_first_name stu_last_name if ///
 egen name_group = group(stu_first_name stu_last_name) if dup_name >= 1, label
 
 ********************************************************************************
-* 4. RANK RESPONSES & DROP NON-FIRST
+* 4. RANK RESPONSES & DROP NON-LAST
 ********************************************************************************
 
 * Convert StartDate to a time/c date format for ranking
 format StartDate %tc
 
 * Rank responses by StartDate within duplicate groups
-bysort email_group : egen email_group_order = rank(StartDate) if !missing(email_group)
-bysort name_group  : egen name_group_order  = rank(StartDate) if !missing(name_group)
+bysort email_group : egen email_group_order = rank(-StartDate) if !missing(email_group)
+bysort name_group  : egen name_group_order  = rank(-StartDate) if !missing(name_group)
 
-* Drop any non-first responses within email or name groups
+* Drop any non-last responses within email or name groups 
+* (assuming the last response is typically the final one)
 drop if (email_group_order > 1 & !missing(email_group)) | ///
         (name_group_order > 1 & !missing(name_group))
 

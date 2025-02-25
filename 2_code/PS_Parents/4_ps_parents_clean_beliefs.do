@@ -12,7 +12,7 @@
 
 clear all
 set more off
-version 17.0
+version 18.0
 
 cap log close
 log using "${dodir_log}/ps_parents_clean_beliefs.log", replace text
