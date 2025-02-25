@@ -1,5 +1,5 @@
 ********************************************************************************
-* 3_ps_students_clean_beliefs.do
+* 4_ps_students_clean_beliefs.do
 *
 * Purpose:
 *   - Load the cleaned PS Students dataset (ps_stu_cleaned.dta).
@@ -12,7 +12,7 @@
 *     by 2 to rescale them back to the original Likert scale.)
 *   - Save the updated dataset.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 19.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -33,7 +33,7 @@ else {
 
 // Start logging
 cap log close
-log using "${dodir_log}/ps_students_clean_beliefs.log", replace text
+log using "${dodir_log}/students_clean_beliefs.log", replace text
 
 timer clear
 timer on 1

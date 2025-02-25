@@ -9,7 +9,7 @@
 *   - Save sensitive data (IP, location, email, names) to a separate file.
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 12.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -31,7 +31,7 @@ else {
 
 * Start logging
 cap log close
-log using "${dodir_log}/ps_students_anonymize.log", replace
+log using "${dodir_log}/students_anonymize.log", replace
 
 ********************************************************************************
 * 1. LOAD THE DATA

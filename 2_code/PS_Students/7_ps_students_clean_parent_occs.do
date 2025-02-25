@@ -1,38 +1,62 @@
-********************************************************************************
-// 6_ps_students_clean_parent_occs.do
-// Purpose : Cleans parent occupation text entries (mother_occ, father_occ)
-//           in the PS Students dataset. First assigns preliminary ISCED codes
-//           via string matching, then exports unique uncleaned entries for
-//           manual review (via an Excel file) and finally merges the cleaned
-//           results back into the dataset.
-// 
-// Author  : Your Name (BA Thesis FS25, dd.mm.yyyy)
-********************************************************************************
+/********************************************************************************
+ * 7_ps_students_clean_parent_occs.do
+ * --------------------------------------------------------------------------------
+ * Purpose:
+ *   This do‐file cleans parent occupation text entries (mother_occ and father_occ)
+ *   in the PS Students dataset. The procedure is as follows:
+ *     1. Assign preliminary ISCED codes to parent occupations via string matching.
+ *     2. Export unique (uncleaned) occupation entries for manual review by writing
+ *        them to an Excel file. In the Excel file you update the suggested ISCED‐F
+ *        category (using the clean occupations.xlsx file located in the assets folder).
+ *     3. Import the manually cleaned suggestions and merge them back into the dataset,
+ *        thereby creating cleaned parent occupation variables.
+ *     4. Finally, merge the cleaned parent occupation data back into the main 
+ *        student dataset using ResponseId.
+ *
+ * Data Requirements:
+ *   - Cleaned student dataset "ps_stu_chars_merged.dta" in:
+ *         ${processed_data}/PS_Students
+ *   - The asset folder for parent occupations: 
+ *         ${parental_occupation_cleaning_new} (which contains "clean occupations.dta" and 
+ *         "clean occupations.xlsx")
+ *
+ * Globals Needed:
+ *   processed_data, dodir_log, parental_occupation_cleaning_new, debug
+ *
+ * Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+ * Version : Stata 18
+ ********************************************************************************/
 
-********************************************************************************
+//----------------------------------------------------------------------------
 // 0. HOUSEKEEPING
-********************************************************************************
-
+//----------------------------------------------------------------------------
 clear all
 set more off
-version 17.0
+version 18.0
+
+// Enable/disable trace based on debug flag
+if ("${debug}" == "yes") {
+    set trace on
+}
+else {
+    set trace off
+}
 
 cap log close
-log using "${dodir_log}/ps_students_clean_parent_occs.log", replace text
+log using "${dodir_log}/students_clean_parent_occs.log", replace text
 
 timer clear
 timer on 1
 
-set seed 123
-
-********************************************************************************
+//----------------------------------------------------------------------------
 // 1) ASSIGN PRELIMINARY ISCED CODES TO PARENT OCCUPATIONS
-//    (Based on string matching of raw text in mother_occ and father_occ)
-********************************************************************************
+//    (Based on raw text in mother_occ and father_occ)
+//----------------------------------------------------------------------------
+di as txt "----- Step 1: Assign preliminary ISCED codes to parent occupations -----"
 
 use "${processed_data}/PS_Students/ps_stu_chars_merged.dta", clear
 
-*-- If you have any standardized field, use it; otherwise use the raw textbox:
+// For each parent (mother and father), create a variable that holds a preliminary ISCED‐F field
 foreach x in mother father {
     gen `x'_occ_isced6 = ""
     replace `x'_occ_isced6 = "Gesundheit, Pflege, Betreuung und Ausbildung" ///
@@ -49,29 +73,29 @@ foreach x in mother father {
     replace `x'_occ_isced6 = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
          if `x'_occ == "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin"
     
-    * Use textbox alternative if available:
+    // If an alternative textbox exists (e.g., field_educ_x_text), use it when the main variable is missing.
     capture confirm variable `x'_occ_text
     if !_rc {
         replace `x'_occ = `x'_occ_text if missing(`x'_occ)
     }
 }
 
-* Save a copy without parent occupation variables for later merge:
+// Save a copy of the dataset without the parent occupation variables for later merging.
 preserve
 drop mother_occ father_occ
 tempfile data_no_parent_occ
 save `data_no_parent_occ'
 restore
 
-* Keep only raw parent occupation texts and ResponseId:
+// Keep only the raw parent occupation texts and ResponseId.
 keep mother_occ father_occ ResponseId
 keep if !missing(mother_occ) | !missing(father_occ)
 
-* Convert to lowercase:
+// Standardize text by converting to lowercase.
 replace mother_occ = lower(mother_occ)
 replace father_occ = lower(father_occ)
 
-* Preliminary ISCED coding (adapt substring checks as needed):
+// Preliminary ISCED coding using string matching (add or adjust rules as needed).
 foreach p in mother_occ father_occ {
     gen isced`p' = .
     replace isced`p' = 0611 if strpos(`p', "it")
@@ -81,8 +105,9 @@ foreach p in mother_occ father_occ {
     replace isced`p' = -2 if strpos(`p', "arbeitet nicht") | strpos(`p', "arbeitslos")
     replace isced`p' = 0410 if strpos(`p', "management")
     replace isced`p' = 0914 if strpos(`p', "arzt") | strpos(`p', "chirurg")
-    // ... (add further rules as needed)
-    
+    // ... add additional rules as needed
+
+    // Map raw ISCED codes to a simplified ISCED-F field grouping.
     gen isced_field`p' = .
     replace isced_field`p' = 1 if isced`p' == 0111
     replace isced_field`p' = 2 if inlist(isced`p', 0212, 0214, 0215, 211)
@@ -107,26 +132,27 @@ foreach p in mother_occ father_occ {
     drop isced_field`p' isced`p'
 }
 
-********************************************************************************
+//----------------------------------------------------------------------------
 // 2) MANUAL REVIEW OF UNCLEANED OCCUPATIONS
-//    Export unique uncleaned entries to Excel (Sheet1) and import manually cleaned
-//    suggestions from the corresponding dta file in the assets folder.
-********************************************************************************
+//    Export unique uncleaned occupation entries to Excel for manual cleaning.
+//----------------------------------------------------------------------------
+di as txt "----- Exporting uncleaned parent occupation entries for manual review -----"
 
-foreach p in mother_occ father_occ {
-    // Rename the raw variable to "occupation" and temporary text result to "isced6_try"
+foreach p in "mother_occ" "father_occ" {
+    // Rename for processing
     rename `p' occupation
     rename isced6`p' isced6_try
-    
+
     tempfile preserve
     save `preserve'
     
+    // Keep unique occupation entries
     keep occupation isced6_try
     bys occupation: keep if _n == 1
     drop if missing(occupation)
     
-    // Merge with the existing cleaned occupations dta from the assets folder
-    merge 1:1 occupation using "${assets}/clean occupations.dta"
+    // Merge with the already cleaned occupations from the assets folder.
+    merge 1:1 occupation using "${parental_occupation_cleaning_new}/clean occupations.dta"
     gen cleaned = (_merge == 3 | _merge == 2)
     sort cleaned occupation
     keep occupation isced6_try cleaned
@@ -135,20 +161,20 @@ foreach p in mother_occ father_occ {
     tempfile uncleaned
     save `uncleaned'
     
-    // Append uncleaned entries to the Excel file (Sheet1) located in assets
-    import excel using "${assets}/clean occupations.xlsx", ///
+    // Append these uncleaned entries to the Excel file (Sheet1)
+    import excel using "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
          sheet("Sheet1") firstrow clear
     merge 1:1 occupation using `uncleaned', nogen update replace
-    merge 1:1 occupation using "${assets}/clean occupations.dta", ///
+    merge 1:1 occupation using "${parental_occupation_cleaning_new}/clean occupations.dta", ///
          keepusing(occupation)
     replace cleaned = 1 if _merge == 3
     drop _merge
     sort cleaned occupation
-    export excel using "${assets}/clean occupations.xlsx", ///
+    export excel using "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
          sheet("Sheet1") sheetmodify cell(A1) firstrow(variables) keepcellfmt
          
-    // Import manually cleaned suggestions from Sheet2
-    import excel "${assets}/clean occupations.xlsx", ///
+    // Import manually cleaned suggestions from the Excel file (Sheet2)
+    import excel "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
          sheet("Sheet2") firstrow allstring clear
     drop if missing(occupation)
     drop if missing(checked)
@@ -168,14 +194,15 @@ foreach p in mother_occ father_occ {
     drop suggestion* isced6_try flag_try_error
     
     order occupation isced6*
-    export excel using "${assets}/clean occupations.xlsx", ///
+    export excel using "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
          sheet("Sheet3") sheetmodify cell(A1) firstrow(variables) keepcellfmt
          
-    // Save the updated cleaned occupations dta file back to assets
-    save "${assets}/clean occupations.dta", replace
+    // Save updated cleaned occupations dataset back to the assets folder.
+    save "${parental_occupation_cleaning_new}/clean occupations.dta", replace
     
+    // Reload preserved data and merge with cleaned occupations.
     use `preserve', clear
-    merge m:1 occupation using "${assets}/clean occupations.dta", nogen keep(master match)
+    merge m:1 occupation using "${parental_occupation_cleaning_new}/clean occupations.dta", nogen keep(master match)
     forval i = 1/4 {
         rename isced6_`i' `p'_isced6_`i'
     }
@@ -183,26 +210,27 @@ foreach p in mother_occ father_occ {
     drop isced6_try
 }
 
-********************************************************************************
-// 3) FINAL HOUSEKEEPING & MERGE BACK
-********************************************************************************
-
-* Label the cleaned variables
+* Label the cleaned variables for clarity.
 forval i = 1/4 {
-    lab var mother_occ_isced6_`i' "Mother field (occupation `i')"
-    lab var father_occ_isced6_`i' "Father field (occupation `i')"
+    lab var mother_occ_isced6_`i' "Mother field (occupation suggestion `i')"
+    lab var father_occ_isced6_`i' "Father field (occupation suggestion `i')"
 }
 
 lab var mother_occ "Raw textbox mother occupation"
 lab var father_occ "Raw textbox father occupation"
 
+// Save the cleaned parent occupations in a temporary file.
 tempfile cleaned_parent_occs
 save `cleaned_parent_occs'
 
+//----------------------------------------------------------------------------
+// 3) FINAL HOUSEKEEPING & MERGE BACK
+//    Merge the cleaned parent occupation data with the main dataset (without parent occ).
+//----------------------------------------------------------------------------
 use `data_no_parent_occ', clear
 merge 1:1 ResponseId using `cleaned_parent_occs', nogen
 
-* As an example, create a final variable from the first suggestion:
+// For illustration, create final variables from the first suggestion.
 rename mother_occ_isced6_1 mother_occ_isced6_final
 rename father_occ_isced6_1 father_occ_isced6_final
 

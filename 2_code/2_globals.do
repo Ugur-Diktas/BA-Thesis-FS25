@@ -11,7 +11,7 @@
 //     in the folder: 1_data/raw
 //   - No date or user input is needed; the code runs automatically.
 //
-// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 12.02.2025
+// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 25.02.2025
 ********************************************************************************
 
 // Subfolders
@@ -31,7 +31,8 @@ global dodir_par_par   "${root}/2_code/PS_Parents"
 
 // Assets
 
-global assets "${root}/4_assets/Parental_occupation_cleaning_new"
+global clean_apprenticeships "${root}/4_assets/clean_apprenticeships"
+global parental_occupation_cleaning_new "${root}/4_assets/Parental_occupation_cleaning_new"
 
 ********************************************************************************
 // Additional parameters

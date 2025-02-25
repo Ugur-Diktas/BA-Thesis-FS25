@@ -1,5 +1,5 @@
 ********************************************************************************
-* 3_ps_students_clean_relabeling_improved.do
+* 3_ps_students_clean_relabeling.do
 *
 * Purpose:
 *   - Load the cleaned PS Students dataset (duplicates removed and test answers dropped).
@@ -10,8 +10,8 @@
 *     and occupational preferences.
 *   - Drop unneeded variables.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 19.02.2025 (refactored 2025-02-25)
-* Version: Stata 18 (Improved version)
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Version: Stata 18
 ********************************************************************************
 
 *---------------------------------------------------------------
@@ -30,7 +30,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/ps_students_clean_relabeling.log", replace text
+log using "${dodir_log}/students_clean_relabeling.log", replace text
 
 timer clear
 timer on 1

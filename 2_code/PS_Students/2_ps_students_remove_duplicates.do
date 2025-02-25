@@ -8,7 +8,7 @@
 *   - Remove non-first responses in each duplicate group.
 *   - Save cleaned dataset.
 *
-* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 12.02.2025
+* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
 * Version : Stata 18
 ********************************************************************************
 
@@ -30,7 +30,7 @@ else {
 
 * Start logging
 cap log close
-log using "${dodir_log}/ps_students_remove_duplicates.log", replace text
+log using "${dodir_log}/students_remove_duplicates.log", replace text
 
 ********************************************************************************
 * 1. LOAD ANONYMIZED DATA
