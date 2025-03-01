@@ -1,5 +1,5 @@
 /********************************************************************************
- * 7_ps_students_clean_parent_occs.do
+ * 8_ps_students_clean_parent_occs.do
  * --------------------------------------------------------------------------------
  * Purpose:
  *   This do‐file cleans parent occupation text entries (mother_occ and father_occ)

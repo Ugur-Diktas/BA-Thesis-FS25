@@ -22,8 +22,6 @@
 version 18.0
 clear all
 set more off
-*macro drop _all
-**** I dont know if you want this but if you keep this it replaces and drops all set macros menaing logging file doesnt work anymoe
 
 // Log initialization
 cap log close
@@ -51,27 +49,16 @@ if !`:list posof "motFactors_child_1" in allvars' {
     error 111
 }
 
-*******************************************************************************
-// 2. MOTIVATIONAL FACTORS PROCESSING
-*******************************************************************************
+********************************************************************************
+* 2. MOTIVATIONAL FACTORS PROCESSING (Alternative Mechanism)
+********************************************************************************
+* This section hard‐codes the mapping between factor labels (in German)
+* and factor numbers via a series of if‑else statements. It creates empty factor 
+* variables for each role (child, mother, father) and then populates them based on 
+* the label of each motivational factor question.
+********************************************************************************
 
-// Define factor mapping (German labels to factor numbers)
-local factor_map ///
-    "Der zukünftige <strong>Lohn</strong>"                   1  ///
-    "Die zukünftige berufliche <strong>Flexibilität</strong>" 2  ///
-    "Möglichkeiten zur <strong>Fort- oder Weiterbildung</strong>" 3  ///
-    "Die <strong>mathematischen</strong> Anforderungen"       4  ///
-    "Die <strong>sprachlichen</strong> Anforderungen"         5  ///
-    "Die <strong>Empfehlungen der Eltern</strong>"            6  ///
-    "Die <strong>Geschlechterzusammensetzung</strong>"        7  ///
-    "Das Ausmass an <strong>sozialem Kontakt</strong>"         8  ///
-    "Menschen zu <strong>helfen</strong>"                     9  ///
-    "Der <strong>Arbeitsort</strong>"                         10 ///
-    "Die <strong>Chance</strong>, einen Lehrvertrag zu bekommen" 11 ///
-    "Die Aussicht auf <strong>Beförderungen</strong>"          12 ///
-    "Ihre persönlichen <strong>Interessen</strong>"            13
-
-// Create empty factor variables
+* Create empty factor variables for each role
 foreach role in child mother father {
     forval i = 1/13 {
         gen `role'_fac_`i' = 0
@@ -79,59 +66,82 @@ foreach role in child mother father {
     }
 }
 
-// Populate factor variables
-quietly {
-    forval j = 1/12 {
-        local current_label : label motFactor`j'
-        
-        // Find matching factor number
-        local found = 0
-        forval k = 1/13 {
-            local map_index = (`k' - 1) * 2 + 1
-            if `"`current_label'"' == `"`: word `map_index' of `factor_map''"' {
-                local factor_num = `: word `= `map_index' + 1' of `factor_map''
-                local found = 1
-                continue, break
-            }
+* Process each motivational factor question (assumed indices 1 to 12)
+forval j = 1/12 {
+    local current_label : var label motFactor`j'
+    local factor_num = 0
+    
+    if "`current_label'" == "Der zukünftige <strong>Lohn</strong>" {
+        local factor_num = 1
+    }
+    else if "`current_label'" == "Die zukünftige berufliche <strong>Flexibilität</strong>" {
+        local factor_num = 2
+    }
+    else if "`current_label'" == "Möglichkeiten zur <strong>Fort- oder Weiterbildung</strong>" {
+        local factor_num = 3
+    }
+    else if "`current_label'" == "Die <strong>mathematischen</strong> Anforderungen" {
+        local factor_num = 4
+    }
+    else if "`current_label'" == "Die <strong>sprachlichen</strong> Anforderungen" {
+        local factor_num = 5
+    }
+    else if "`current_label'" == "Die <strong>Empfehlungen der Eltern</strong>" {
+        local factor_num = 6
+    }
+    else if "`current_label'" == "Die <strong>Geschlechterzusammensetzung</strong>" {
+        local factor_num = 7
+    }
+    else if "`current_label'" == "Das Ausmass an <strong>sozialem Kontakt</strong>" {
+        local factor_num = 8
+    }
+    else if "`current_label'" == "Menschen zu <strong>helfen</strong>" {
+        local factor_num = 9
+    }
+    else if "`current_label'" == "Der <strong>Arbeitsort</strong>" {
+        local factor_num = 10
+    }
+    else if "`current_label'" == "Die <strong>Chance</strong>, einen Lehrvertrag zu bekommen" {
+        local factor_num = 11
+    }
+    else if "`current_label'" == "Die Aussicht auf <strong>Beförderungen</strong>" {
+        local factor_num = 12
+    }
+    else if "`current_label'" == "Ihre persönlichen <strong>Interessen</strong>" {
+        local factor_num = 13
+    }
+    
+    if `factor_num' != 0 {
+        foreach role in child mother father {
+            quietly replace `role'_fac_`factor_num' = 1 if motFactor_`role'_`j' == 1
         }
-        
-        if `found' {
-            foreach role in child mother father {
-                replace `role'_fac_`factor_num' = 1 ///
-                    if motFactors_`role'_`j' == 1
-            }
-        }
-        else {
-            di as error "WARNING: Unmapped label found: `current_label'"
-        }
+    }
+    else {
+        di as error "WARNING: Unmapped label found: `current_label'"
     }
 }
 
-*******************************************************************************
-// 3. VARIABLE LABELING
-*******************************************************************************
-
-// English labels
-local factor_labels ///
-    1  "Future salary" ///
-    2  "Career flexibility" ///
-    3  "Further education opportunities" ///
-    4  "Mathematical requirements" ///
-    5  "Language requirements" ///
-    6  "Parental recommendations" ///
-    7  "Gender composition" ///
-    8  "Social contact level" ///
-    9  "Helping others" ///
-    10 "Workplace type" ///
-    11 "Contract acquisition likelihood" ///
-    12 "Promotion prospects" ///
-    13 "Personal interests"
+********************************************************************************
+* 3. VARIABLE LABELING (Hard-Coded)
+********************************************************************************
+* For each role (child, mother, father), assign a hard-coded label to each of
+* the 13 factor variables.
+********************************************************************************
 
 foreach role in child mother father {
-    forval i = 1/13 {
-        local label_text : label factor_labels `i'
-        label variable `role'_fac_`i' "`role': `label_text'"
-    }
+    label variable `role'_fac_1  "`role': Future salary"
+    label variable `role'_fac_2  "`role': Career flexibility"
+    label variable `role'_fac_3  "`role': Further education opportunities"
+    label variable `role'_fac_4  "`role': Mathematical requirements"
+    label variable `role'_fac_5  "`role': Language requirements"
+    label variable `role'_fac_6  "`role': Parental recommendations"
+    label variable `role'_fac_7  "`role': Gender composition"
+    label variable `role'_fac_8  "`role': Social contact level"
+    label variable `role'_fac_9  "`role': Helping others"
+    label variable `role'_fac_10 "`role': Workplace type"
+    label variable `role'_fac_11 "`role': Contract acquisition likelihood"
+    label variable `role'_fac_12 "`role': Promotion prospects"
+    label variable `role'_fac_13 "`role': Personal interests"
 }
 
 *******************************************************************************

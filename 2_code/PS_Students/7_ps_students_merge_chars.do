@@ -1,5 +1,5 @@
 /********************************************************************************
- * 8_ps_students_merge_chars.do
+ * 7_ps_students_merge_chars.do
  * --------------------------------------------------------------------------------
  * Purpose:
  *   Merges student apprenticeship preference variables with the apprenticeship

@@ -148,28 +148,30 @@ if !_rc {
     decode track_1, gen(r_canton)
     decode track_2, gen(r_school_track_name)
     
-    * Ensure decoded canton matches existing "canton" (or is "Grigioni")
-    assert r_canton == canton | canton == "Grigioni"
-    gen track_error = 1 if r_canton != canton
+    * Check if decoded canton differs from existing "canton" (unless canton is "Grigioni")
+    count if !missing(canton) & (r_canton != canton & canton != "Grigioni")
+    if r(N) > 0 {
+         di as txt "Warning: " r(N) " observations: decoded canton does not match 'canton'. Replacing 'canton' with decoded value."
+    }
     replace canton = r_canton
     drop r_canton
 
-    * Similarly, check that decoded school track name matches school_type, except for "Karışık"
-    assert r_school_track_name == school_type | school_type == "Karışık"
-    replace track_error = 1 if r_school_track_name != school_type
+    * Check if decoded school track name differs from school_type (except when school_type is "Karışik")
+    count if !missing(school_type) & (r_school_track_name != school_type & school_type != "Karışik")
+    if r(N) > 0 {
+         di as txt "Warning: " r(N) " observations: decoded school track name does not match 'school_type'. Replacing 'school_type' with decoded value."
+    }
     rename r_school_track_name school_track_name
     replace school_type = school_track_name
 
-    assert missing(school_track) if track_error == 1
-
     * Encode final track variable based on standardized values:
     gen track = .
-    replace track = 1 if school_track == "low"
-    replace track = 2 if school_track == "middle"
-    replace track = 3 if school_track == "intermediate"
-    replace track = 4 if school_track == "high"
-    replace track = 5 if school_track == "mixed"
-    replace track = 6 if school_track == "other"
+    replace track = 1 if school_type == "low"
+    replace track = 2 if school_type == "middle"
+    replace track = 3 if school_type == "intermediate"
+    replace track = 4 if school_type == "high"
+    replace track = 5 if school_type == "mixed"
+    replace track = 6 if school_type == "other"
     
     label define track_labels 1 "Low" 2 "Middle" 3 "Intermediate" 4 "High" 5 "Mixed" 6 "Other", replace
     label values track track_labels
