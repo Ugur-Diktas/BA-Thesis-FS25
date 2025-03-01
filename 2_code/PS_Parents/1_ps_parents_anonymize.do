@@ -1,68 +1,59 @@
 ********************************************************************************
-// 1_ps_parents_anonymize.do
-// Purpose : Imports raw PS parents data (auto-detect .sav), merges with 
-//           sensitive info, drops direct identifiers, saves anonymised.
-//
-// Author  : Ugur Diktas-Jelke Clarysse
-// Project : BA Thesis FS25
-// Date    : 26.02.2025
-//
-// Steps   :
-//    1) Preserve current working directory and cd into the raw data folder
-//    2) Find file matching ^PoF_PS_Parents*.sav
-//    3) import spss using that .sav
-//    4) Run advanced anonymising steps (duplicates, drops test e-mails, etc.)
-//    5) Save sensitive data & anonymised data, then restore the original directory
-//
-// Requires: 
-//    - 2_globals.do must be run beforehand so that ${raw_data}, etc. are defined
-//    - A file in the raw folder named PoF_PS_Parents*.sav
+* 1_ps_parents_anonymize.do
+*
+* Purpose:
+* - Import raw PS Parents .sav file(s).
+* - Remove test/preliminary responses based on test emails, preview status,
+*   official start date, etc.
+* - Save sensitive data (IP, location, email, child name) separately.
+* - Save anonymised version of the dataset.
+*
+* Author  : [Your Name / Team]
+* Version : Stata 18
+* Date    : [YYYY-MM-DD]
 ********************************************************************************
 
-********************************************************************************
-// 0. HOUSEKEEPING
-********************************************************************************
 clear all
 set more off
-version 17.0
-* Conditionally enable trace if debugging is requested
+version 18.0
+
+* Enable trace if debug mode is on
 if "${debug}" == "yes" {
     set trace on
-} 
+}
 else {
     set trace off
 }
-// Start logging
+
+* Start logging
 cap log close
-log using "${dodir_log}/ps_parentss_anonymize.log", replace
+log using "${dodir_log}/1_ps_parents_anonymize.log", replace text
 
 ********************************************************************************
-// 1. LOAD THE DATA
+* 1. LOAD THE DATA
 ********************************************************************************
 
-// Preserve current directory
 local initial_dir "`c(pwd)'"
-
-// Import raw data
 cd "${raw_data}"
-local stufile : dir . files "PoF_PS_Parents*.sav"
-if `:word count `stufile'' == 0 {
-    di as error "ERROR: No parents .sav file found."
+
+* Find raw PS_Parents .sav file(s). Adjust wildcard if needed
+local parfiles : dir . files "PoF_PS_Parents*.sav"
+if `:word count `parfiles'' == 0 {
+    di as error "ERROR: No PS Parents .sav file found in raw data folder."
     cd "`initial_dir'"
     error 601
 }
-import spss using "`:word 1 of `stufile''", clear
+
+di as txt "Importing PS Parents file: `:word 1 of `parfiles''"
+import spss using "`:word 1 of `parfiles''", clear
+
+cd "`initial_dir'"
 
 ********************************************************************************
-* 2. DROP TEST ANSWERS
-*    - Remove test/preliminary responses based on:
-*         a) Email addresses (and domains)
-*         b) Test names in name_child_1 and name_child_2
-*         c) Qualtrics preview responses (Status == 1)
-*         d) Responses before a given StartDate
+* 2. DROP TEST RESPONSES
 ********************************************************************************
 
-* Drop test emails and any responses containing "uzh.ch"
+* Drop test emails and any containing "uzh.ch"
 drop if inlist(email, ///
     "daphne.rutnam@econ.uzh.ch", ///
     "hannah.massenbauer@econ.uzh.ch", ///
@@ -70,62 +61,36 @@ drop if inlist(email, ///
     "gianluca.spina@bluewin.ch", ///
     "cambriadaniele@gmail.com", ///
     "hannah.massenbauer@gmail.com", ///
-    "daphne.rutnam@gmail.com") ///
-    | strpos(email, "uzh.ch") > 0
+    "daphne.rutnam@gmail.com") | ///
+    strpos(email, "uzh.ch") > 0
 
-* Drop test responses based on test names
+* Drop test responses based on child names
 drop if inlist(name_child_1, "test", "Test") | inlist(name_child_2, "test", "Test")
 
 * Drop Qualtrics preview responses
 drop if Status == 1
 
-* Drop responses before the official start date
+* Drop responses before official start date
 format StartDate %tc
 drop if StartDate < clock("2024-11-11 10:00:00", "YMDhms")
 
-/*
 ********************************************************************************
-// 3. CHECK DUPLICATES
-********************************************************************************
-
-duplicates tag ResponseId, gen(dup_responseid)
-if `r(N)' > 0 {
-    di "Dropping `r(N)' duplicates on ResponseId"
-    drop if dup_responseid > 0
-}
-drop dup_responseid
-
-********************************************************************************
-// 4. PREPARE DUPLICATES CLEANING
+* 3. SENSITIVE DATA & ANONYMISED DATA
 ********************************************************************************
 
-// Generate compliance indicators
-gen compl_email      = !missing(email)
-gen compl_first_name = !missing(name_child_1)
-gen compl_last_name  = !missing(name_child_2)
-label var compl_email      "Provided email"
-label var compl_first_name "Provided first name"
-label var compl_last_name  "Provided last name"
-*/
-********************************************************************************
-// 5.SENSITIVE DATA ONLY
-********************************************************************************
-
-// Save sensitive data
 preserve
-    keep ResponseId IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_2
-    rename (LocationLatitude LocationLongitude name_child_1 name_child_2) (location_lat location_long stu_first_name stu_last_name)
-    destring location_lat location_long, replace
-    save "${sensitive_data}/ps_par_sensitive_only.dta", replace
+keep ResponseId IPAddress LocationLatitude LocationLongitude email ///
+     name_child_1 name_child_2
+rename (LocationLatitude LocationLongitude name_child_1 name_child_2) ///
+       (location_lat location_long child_first_name child_last_name)
+destring location_lat location_long, replace
+save "${sensitive_data}/ps_par_sensitive_only.dta", replace
 restore
-// Drop sensitive vars and save anonymized data
+
+* Drop sensitive variables
 drop IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_2
 
-********************************************************************************
-// 6. FINAL HOUSEKEEPING & SAVE
-********************************************************************************
+* Save anonymised data
 save "${processed_data}/PS_Parents/ps_par_all_anon.dta", replace
 
-// Restore directory and close log
-cd "`initial_dir'"
 log close
