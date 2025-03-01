@@ -5,7 +5,7 @@
 //
 // Author  : Ugur Diktas-Jelke Clarysse
 // Project : BA Thesis FS25
-// Date    : 19.02.2025
+// Date    : 26.02.2025
 //
 // Steps   :
 //    1) Preserve current working directory and cd into the raw data folder
@@ -25,7 +25,13 @@
 clear all
 set more off
 version 17.0
-
+* Conditionally enable trace if debugging is requested
+if "${debug}" == "yes" {
+    set trace on
+} 
+else {
+    set trace off
+}
 // Start logging
 cap log close
 log using "${dodir_log}/ps_parentss_anonymize.log", replace
@@ -46,18 +52,38 @@ if `:word count `stufile'' == 0 {
     error 601
 }
 import spss using "`:word 1 of `stufile''", clear
+
 ********************************************************************************
-// 2. DROP TEST DATA 
+* 2. DROP TEST ANSWERS
+*    - Remove test/preliminary responses based on:
+*         a) Email addresses (and domains)
+*         b) Test names in name_child_1 and name_child_2
+*         c) Qualtrics preview responses (Status == 1)
+*         d) Responses before a given StartDate
 ********************************************************************************
 
-//drop e-mails and tests 
-drop if inlist(email, "daphne.rutnam@econ.uzh.ch", "hannah.massenbauer@econ.uzh.ch", "anne.brenoe@econ.uzh.ch", "gianluca.spina@bluewin.ch", "cambriadaniele@gmail.com", "hannah.massenbauer@gmail.com", "daphne.rutnam@gmail.com") | strpos(email, "uzh.ch") > 0
+* Drop test emails and any responses containing "uzh.ch"
+drop if inlist(email, ///
+    "daphne.rutnam@econ.uzh.ch", ///
+    "hannah.massenbauer@econ.uzh.ch", ///
+    "anne.brenoe@econ.uzh.ch", ///
+    "gianluca.spina@bluewin.ch", ///
+    "cambriadaniele@gmail.com", ///
+    "hannah.massenbauer@gmail.com", ///
+    "daphne.rutnam@gmail.com") ///
+    | strpos(email, "uzh.ch") > 0
+
+* Drop test responses based on test names
 drop if inlist(name_child_1, "test", "Test") | inlist(name_child_2, "test", "Test")
 
-// Drop preview responses
-
+* Drop Qualtrics preview responses
 drop if Status == 1
 
+* Drop responses before the official start date
+format StartDate %tc
+drop if StartDate < clock("2024-11-11 10:00:00", "YMDhms")
+
+/*
 ********************************************************************************
 // 3. CHECK DUPLICATES
 ********************************************************************************
@@ -80,7 +106,7 @@ gen compl_last_name  = !missing(name_child_2)
 label var compl_email      "Provided email"
 label var compl_first_name "Provided first name"
 label var compl_last_name  "Provided last name"
-
+*/
 ********************************************************************************
 // 5.SENSITIVE DATA ONLY
 ********************************************************************************

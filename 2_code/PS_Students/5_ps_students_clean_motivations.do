@@ -22,7 +22,8 @@
 version 18.0
 clear all
 set more off
-macro drop _all
+*macro drop _all
+**** I dont know if you want this but if you keep this it replaces and drops all set macros menaing logging file doesnt work anymoe
 
 // Log initialization
 cap log close

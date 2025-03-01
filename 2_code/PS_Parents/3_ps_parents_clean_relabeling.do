@@ -3,19 +3,19 @@
 // Purpose : Cleans & processes the belief-related questions in the PS Students 
 //           dataset. Includes built-in debug steps to handle naming issues.
 // 
-// Author  : Ugur Diktas_Jelke Clarysse, BA Thesis FS25, 19.02.2025
+// Author  : Ugur Diktas_Jelke Clarysse, BA Thesis FS25, 26.02.2025
 ********************************************************************************
 
 ********************************************************************************
 // 0. HOUSEKEEPING
 ********************************************************************************
-/*
+
 clear all
 set more off
-version 17.0
+version 18.0
 
 cap log close
-log using "${dodir_log}/ps_students_clean_relabeling.log", replace text
+log using "${dodir_log}/parents_clean_relabeling.log", replace text
 
 // Turn on Stata's trace for very detailed debugging (comment out if too verbose).
 // set trace on
@@ -28,39 +28,17 @@ timer on 1
 // 1. LOAD THE CLEANED DATA
 ********************************************************************************
 
-di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+di as txt "----- Loading dataset: ps_par_cleaned.dta -----"
+quietly use "${processed_data}/PS_parents/ps_par_cleaned.dta", clear
 
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 
 if _N == 0 {
-    di as error "ERROR: No observations found in ps_stu_cleaned.dta."
+    di as error "ERROR: No observations found in ps_par_cleaned.dta."
     error 602
 }
 
-********************************************************************************
-// 2.REMOVE TEST ANSWERS
-********************************************************************************
-*Drop the test answers 
-drop if test != ""
-drop if Status == 1
-
-*Drop if answered before 11 November 10:00 (test responses)
-format StartDate %tc
-drop if StartDate < clock("2024-11-11 10:00:00", "YMDhms")
-
-merge 1:1 ResponseId using "${sensitive_data}/ps_stu_sensitive_only", keep(master match) keepusing(ResponseId stu_first_name stu_last_name email) nogen
-
-
-*Drop if email is a test email
-drop if email == "daphne.rutnam@econ.uzh.ch" | email == "hannah.massenbauer@econ.uzh.ch" | email == "anne.brenoe@econ.uzh.ch" | email == "gianluca.spina@uzh.ch" | email == "Anne.brenoe@econ.uzh.ch" | email == "daphne.rutnam@gmail.com"
-
-*Drop if feedback is "Test" or "test"
-drop if feedback == "Test" | feedback == "test"
-
-*Deal with ones where schoolid is missing but can be identified by class name and date
-replace schoolid = "6002" if (name_class == "B2B" | name_class == "B2b" | name_class == "R2a" | name_class == "B1b" | name_class == "B23b" | name_class == "B2a") & sbID == "1" & StartDate < clock("2024-21-11 20:00:00", "YMDhms") & missing(schoolid)
 
 ********************************************************************************
 // 3.CLEANS DURATION VARIABLES-MAKES FULL DURATION VARIABLES 
