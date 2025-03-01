@@ -10,7 +10,7 @@
 *     and occupational preferences.
 *   - Drop unneeded variables.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
 * Version: Stata 18
 ********************************************************************************
 

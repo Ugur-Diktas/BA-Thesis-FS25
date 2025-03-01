@@ -8,7 +8,7 @@
 *   variables (motFactors_this and motFactors_other) by creating binary
 *   indicator variables (fac_1 to fac_13) for each motivational factor.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
 * Version: Stata 18
 ********************************************************************************
 

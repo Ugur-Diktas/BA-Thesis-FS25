@@ -22,7 +22,7 @@
  * Globals Needed:
  *   - data_to_merge, processed_data, dodir_log, debug
  *
- * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+ * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
  * Version: Stata 18
  ********************************************************************************/
 

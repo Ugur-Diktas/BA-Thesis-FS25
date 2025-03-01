@@ -9,7 +9,7 @@
 *   - Save sensitive data (IP, location, email, names) to a separate file.
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
 * Version: Stata 18
 ********************************************************************************
 

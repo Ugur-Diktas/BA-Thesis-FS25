@@ -12,7 +12,7 @@
 *     by 2 to rescale them back to the original Likert scale.)
 *   - Save the updated dataset.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
 * Version: Stata 18
 ********************************************************************************
 

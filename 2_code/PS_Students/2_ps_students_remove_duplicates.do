@@ -8,7 +8,7 @@
 *   - Remove non-first responses in each duplicate group.
 *   - Save cleaned dataset.
 *
-* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 25.02.2025
+* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
 * Version : Stata 18
 ********************************************************************************
 

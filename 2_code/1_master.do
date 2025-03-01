@@ -8,7 +8,7 @@
 //   2) Then just run this 1_master.do to produce anonymised & cleaned data.
 //	 !! Before runtime, please make sure to cd your Stata terminal lsto root
 //
-// Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 25.02.2025
+// Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 01.03.2025
 ********************************************************************************
 
 clear all
