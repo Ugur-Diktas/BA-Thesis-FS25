@@ -3,6 +3,7 @@ import subprocess
 import logging
 import time
 from datetime import datetime
+import getpass
 
 class DataCleaningTester:
     """
@@ -19,13 +20,13 @@ class DataCleaningTester:
             self.root_dir = root_dir
             
         self.setup_logging()
+        self.stata_cmd = self.determine_stata_command()
         
     def determine_root_path(self):
         """
         Determine the root path based on username similar to 1_master.do.
         Falls back to current directory if no match is found.
         """
-        import getpass
         username = getpass.getuser()
         
         # Define roots for different users
@@ -42,6 +43,69 @@ class DataCleaningTester:
                 
         # Fallback to current directory
         return os.path.abspath(os.getcwd())
+
+    def determine_stata_command(self):
+        """
+        Find the appropriate Stata command for the current system.
+        Tries various common Stata executable names and locations.
+        """
+        username = getpass.getuser()
+        
+        # Define user-specific Stata commands
+        user_stata_commands = {
+            "jelkeclarysse": "stata-mp",
+            "ugurdiktas": "/Applications/Stata/StataBE.app/Contents/MacOS/stataBE"  # Set exact path for ugurdiktas
+        }
+        
+        # Return specific command for current user if it exists
+        if username in user_stata_commands:
+            return user_stata_commands[username]
+        
+        # Check for common Mac Stata installations for Apple Silicon
+        mac_specific_paths = [
+            "/Applications/Stata/StataBE.app/Contents/MacOS/stataBE",
+            "/Applications/Stata/StataSE.app/Contents/MacOS/stataSE",
+            "/Applications/Stata/StataMP.app/Contents/MacOS/stataMP",
+            "/Applications/Stata/Stata.app/Contents/MacOS/stata"
+        ]
+        
+        for path in mac_specific_paths:
+            if os.path.exists(path):
+                return path
+        
+        # Try to locate Stata executable in common locations
+        possible_commands = ["stata", "stata-se", "stata-mp", "stata-be", "StataMP-64", "StataMP", "StataSE-64", "StataSE", "StataBE"]
+        
+        # Windows-specific paths
+        if os.name == 'nt':
+            program_files = os.environ.get('PROGRAMFILES', 'C:\\Program Files')
+            stata_paths = [
+                os.path.join(program_files, "Stata18", cmd + ".exe") for cmd in ["StataSE-64", "StataMP-64", "Stata-64", "StataBE-64"]
+            ] + [
+                os.path.join(program_files, "Stata17", cmd + ".exe") for cmd in ["StataSE-64", "StataMP-64", "Stata-64", "StataBE-64"]
+            ]
+            
+            for path in stata_paths:
+                if os.path.exists(path):
+                    return f'"{path}"'  # Return with quotes for paths with spaces
+        
+        # For macOS/Linux, try commands directly (should be in PATH)
+        for cmd in possible_commands:
+            try:
+                # Check if command exists by running 'which' or 'where'
+                if os.name == 'nt':
+                    check_cmd = ["where", cmd]
+                else:
+                    check_cmd = ["which", cmd]
+                
+                result = subprocess.run(check_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode == 0:
+                    return cmd
+            except:
+                pass
+        
+        # Default to stata-se if nothing else is found
+        return "stata-se"
         
     def setup_logging(self):
         """Configure logging to file and console."""
@@ -73,24 +137,25 @@ class DataCleaningTester:
         self.logger.info(f"Working directory: {cwd}")
         
         try:
-            # For Windows
-            if os.name == 'nt':
-                result = subprocess.run(
-                    ['stata-mp', '-b', 'do', command],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-            # For Mac/Linux
+            if os.path.exists(self.stata_cmd):
+                # Full path to Stata executable
+                cmd_parts = [self.stata_cmd, "-b", "-e", "do", command]
+            elif self.stata_cmd.startswith('"') and self.stata_cmd.endswith('"'):
+                # Windows path with quotes
+                cmd_parts = [self.stata_cmd.strip('"'), "-b", "-e", "do", command]
             else:
-                result = subprocess.run(
-                    ['stata-mp', '-b', 'do', command],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
+                # Just the command name
+                cmd_parts = [self.stata_cmd, "-b", "-e", "do", command]
+                
+            self.logger.info(f"Using Stata command: {self.stata_cmd}")
+            
+            result = subprocess.run(
+                cmd_parts,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=False
+            )
                 
             if result.returncode != 0:
                 self.logger.error(f"Stata command failed with return code {result.returncode}")
@@ -306,6 +371,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Run tests for Stata data cleaning pipeline')
     parser.add_argument('--root', help='Path to project root directory')
+    parser.add_argument('--stata', help='Path to Stata executable')
+    parser.add_argument('--skip-stata', action='store_true', help='Skip Stata tests')
     args = parser.parse_args()
     
     # Use provided root or auto-detect
@@ -317,5 +384,16 @@ if __name__ == "__main__":
         PROJECT_ROOT = tester.root_dir
         print(f"Auto-detected root path: {PROJECT_ROOT}")
     
+    # Create tester
     tester = DataCleaningTester(PROJECT_ROOT)
-    tester.run_all_tests()
+    
+    # Override Stata command if provided
+    if args.stata:
+        tester.stata_cmd = args.stata
+        print(f"Using provided Stata command: {args.stata}")
+    
+    # Run tests
+    if args.skip_stata:
+        print("Skipping Stata tests (--skip-stata flag set)")
+    else:
+        tester.run_all_tests()

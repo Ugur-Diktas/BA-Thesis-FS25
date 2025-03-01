@@ -7,3 +7,5 @@
 1_data/to_merge/*
 1_data/sensitive/*
 3_logfiles/*
+5_tests/*.log
+5_tests/nul

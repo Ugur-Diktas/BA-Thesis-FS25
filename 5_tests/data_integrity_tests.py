@@ -115,7 +115,7 @@ class DataIntegrityTester:
             
             # Parents files
             os.path.join(self.root_dir, "1_data", "processed", "PS_Parents", "ps_par_all_anon.dta"),
-            os.path.join(self.root_dir, "1_data", "processed", "PS_Parents", "temp_parents_step2.dta"),
+            os.path.join(self.root_dir, "1_data", "processed", "PS_Parents", "ps_par_cleaned.dta"),
             os.path.join(self.root_dir, "1_data", "processed", "PS_Parents", "ps_parents_final.dta")
         ]
         
@@ -236,9 +236,9 @@ class DataIntegrityTester:
         }
         else {
             // Try the intermediate dataset
-            capture confirm file "${processed_data}/PS_Parents/temp_parents_step2.dta"
+            capture confirm file "${processed_data}/PS_Parents/ps_par_cleaned.dta"
             if _rc == 0 {
-                use "${processed_data}/PS_Parents/temp_parents_step2.dta", clear
+                use "${processed_data}/PS_Parents/ps_par_cleaned.dta", clear
                 
                 // Check for key variables
                 local key_vars "ResponseId"
@@ -550,7 +550,7 @@ class DataIntegrityTester:
         else {
             // At least one dataset is missing, try intermediate datasets
             capture confirm file "${processed_data}/PS_Students/ps_stu_cleaned.dta"
-            capture confirm file "${processed_data}/PS_Parents/temp_parents_step2.dta"
+            capture confirm file "${processed_data}/PS_Parents/ps_par_cleaned.dta"
             
             if _rc == 0 {
                 // Both intermediate datasets exist, test coherence
@@ -567,7 +567,7 @@ class DataIntegrityTester:
                 save `student_ids'
                 
                 // Load parent dataset and merge
-                use "${processed_data}/PS_Parents/temp_parents_step2.dta", clear
+                use "${processed_data}/PS_Parents/ps_par_cleaned.dta", clear
                 
                 // Get count of parent records
                 count
@@ -669,58 +669,198 @@ class DataIntegrityTester:
         else:
             self.results["Dataset Coherence"] = "INCONCLUSIVE"
             return False
-    
-    def run_all_tests(self):
-        """Run all data integrity tests and produce a summary report."""
-        self.logger.info("Starting data integrity tests")
         
-        # Run each test and record results
-        test_output_files = self.test_output_file_existence()
-        test_var_consistency = self.test_variable_consistency()
-        test_transformations = self.test_data_transformations()
-        test_missing = self.test_missing_values()
-        test_coherence = self.test_dataset_coherence()
+    def test_observation_preservation(self):
+        """Test that observations are properly preserved throughout the cleaning process."""
+        self.logger.info("Testing observation preservation")
         
-        # Generate summary report
-        self.logger.info("-" * 80)
-        self.logger.info("DATA INTEGRITY TEST SUMMARY")
-        self.logger.info("-" * 80)
+        script = """
+        clear all
+        set more off
         
-        for test_name, result in self.results.items():
-            self.logger.info(f"{test_name:50} : {result}")
+        // Source globals
+        do "2_code/2_globals.do"
         
-        # Calculate overall pass rate
-        pass_count = sum(1 for result in self.results.values() if result == "PASS")
-        warning_count = sum(1 for result in self.results.values() if result in ["WARNING", "PARTIAL"])
-        fail_count = sum(1 for result in self.results.values() if result == "FAIL")
-        inconclusive_count = sum(1 for result in self.results.values() if result == "INCONCLUSIVE")
-        total_count = len(self.results)
+        // Compare raw vs processed student counts
+        capture confirm file "${raw_data}/PoF_PS_Students.dta"
+        if _rc != 0 {
+            display "ERROR: Raw students dataset not found"
+            exit 1
+        }
         
-        pass_percentage = (pass_count / total_count) * 100 if total_count > 0 else 0
+        use "${raw_data}/PoF_PS_Students.dta", clear
+        count
+        local raw_count = r(N)
+        display "RAW_COUNT: `raw_count'"
         
-        self.logger.info("-" * 80)
-        self.logger.info(f"OVERALL RESULT: {pass_count}/{total_count} tests passed ({pass_percentage:.1f}%)")
-        self.logger.info(f"Warnings/Partial: {warning_count}, Failures: {fail_count}, Inconclusive: {inconclusive_count}")
-        self.logger.info("-" * 80)
+        // Get final count
+        capture confirm file "${processed_data}/PS_Students/ps_stu_final.dta"
+        if _rc != 0 {
+            display "ERROR: Final students dataset not found"
+            exit 1
+        }
         
-        return self.results
+        use "${processed_data}/PS_Students/ps_stu_final.dta", clear
+        count 
+        local final_count = r(N)
+        display "FINAL_COUNT: `final_count'"
+        
+        // Calculate percentage preserved
+        local preserved_pct = `final_count' / `raw_count' * 100
+        display "PRESERVED_PERCENT: `preserved_pct'"
+        
+        // Test for significant loss
+        if `preserved_pct' < 85 {
+            display "WARNING: Significant data loss detected (only `preserved_pct'% preserved)"
+        }
+        else {
+            display "DATA_PRESERVATION: Acceptable level of data retained"
+        }
+        """
+        
+        output = self.run_stata_check(script)
+        if output is None:
+            self.results["Observation Preservation"] = "INCONCLUSIVE"
+            return False
 
-# Example usage
-if __name__ == "__main__":
-    # Parse command line arguments
-    import argparse
-    parser = argparse.ArgumentParser(description='Run data integrity tests for Stata data cleaning pipeline')
-    parser.add_argument('--root', help='Path to project root directory')
-    args = parser.parse_args()
+        import re
+        # Extract counts
+        raw_count = None
+        final_count = None
+        preserved_pct = None
+        
+        match = re.search(r"RAW_COUNT: (\d+)", output)
+        if match:
+            raw_count = int(match.group(1))
+            
+        match = re.search(r"FINAL_COUNT: (\d+)", output)
+        if match:
+            final_count = int(match.group(1))
+            
+        match = re.search(r"PRESERVED_PERCENT: ([\d\.]+)", output)
+        if match:
+            preserved_pct = float(match.group(1))
+        
+        # Log the findings
+        if raw_count is not None:
+            self.logger.info(f"Raw observations: {raw_count}")
+        if final_count is not None:
+            self.logger.info(f"Final observations: {final_count}")
+        if preserved_pct is not None:
+            self.logger.info(f"Data preservation rate: {preserved_pct:.1f}%")
+        
+        # Determine test result
+        if "DATA_PRESERVATION: Acceptable level" in output:
+            self.results["Observation Preservation"] = "PASS"
+            return True
+        elif "WARNING: Significant data loss detected" in output:
+            self.logger.warning(f"Significant data loss detected (only {preserved_pct:.1f}% preserved)")
+            self.results["Observation Preservation"] = "WARNING"
+            return False
+        else:
+            self.results["Observation Preservation"] = "INCONCLUSIVE"
+            return False
     
-    # Use provided root or auto-detect
-    if args.root:
-        PROJECT_ROOT = os.path.abspath(args.root)
-    else:
-        # Auto-detect root path
-        tester = DataIntegrityTester()
-        PROJECT_ROOT = tester.root_dir
-        print(f"Auto-detected root path: {PROJECT_ROOT}")
-    
-    tester = DataIntegrityTester(PROJECT_ROOT)
-    tester.run_all_tests()
+    def test_duplicate_resolution_quality(self):
+        """Test that duplicate resolution preserves the right records."""
+        self.logger.info("Testing duplicate resolution quality")
+        
+        script = """
+        clear all
+        set more off
+        
+        // Source globals
+        do "2_code/2_globals.do"
+        
+        // Load and tag dupes in raw data
+        capture confirm file "${raw_data}/PoF_PS_Students.dta"
+        if _rc != 0 {
+            display "ERROR: Raw students dataset not found"
+            exit 1
+        }
+        
+        use "${raw_data}/PoF_PS_Students.dta", clear
+        
+        // Find duplicates by ResponseId and mark them
+        duplicates tag ResponseId, gen(dup_tag)
+        count if dup_tag > 0
+        display "DUPES_COUNT: " r(N)
+        
+        // Count total duplicated records
+        count if dup_tag > 0
+        local total_dupes = r(N)
+        
+        // Identify records that would be completely dropped vs properly merged
+        capture egen timestamp = max(StartDate), by(ResponseId)
+        if _rc == 0 {
+            // If we can sort by timestamp, do so
+            gen should_keep = (StartDate == timestamp)
+            count if dup_tag > 0 & should_keep == 0
+            display "RECORDS_TO_DROP: " r(N)
+            
+            // Check if any critical values would be lost in dropped dupes
+            // Contract is an important variable we want to preserve
+            gen has_critical_value = 0
+            capture confirm variable contract
+            if _rc == 0 {
+                replace has_critical_value = 1 if !missing(contract) & should_keep == 0
+                count if has_critical_value == 1
+                display "DUPES_WITH_CRITICAL_VALUES: " r(N)
+            }
+            else {
+                display "DUPES_WITH_CRITICAL_VALUES: UNKNOWN"
+            }
+        }
+        else {
+            // Can't determine which records would be kept
+            display "RECORDS_TO_DROP: UNKNOWN"
+            display "DUPES_WITH_CRITICAL_VALUES: UNKNOWN"
+        }
+        """
+        
+        output = self.run_stata_check(script)
+        if output is None:
+            self.results["Duplicate Resolution Quality"] = "INCONCLUSIVE"
+            return False
+
+        import re
+        dupes_count = None
+        records_to_drop = None
+        critical_values = None
+        
+        match = re.search(r"DUPES_COUNT: (\d+)", output)
+        if match:
+            dupes_count = int(match.group(1))
+            
+        match = re.search(r"RECORDS_TO_DROP: (\d+)", output)
+        if match and match.group(1) != "UNKNOWN":
+            records_to_drop = int(match.group(1))
+            
+        match = re.search(r"DUPES_WITH_CRITICAL_VALUES: (\d+)", output)
+        if match and match.group(1) != "UNKNOWN":
+            critical_values = int(match.group(1))
+        
+        # Log the findings
+        if dupes_count is not None:
+            self.logger.info(f"Duplicate records found: {dupes_count}")
+        if records_to_drop is not None:
+            self.logger.info(f"Records that would be dropped: {records_to_drop}")
+        if critical_values is not None:
+            self.logger.info(f"Duplicate records with critical values: {critical_values}")
+        
+        # Determine test result
+        if critical_values is not None and critical_values > 0:
+            self.logger.warning(f"Found {critical_values} duplicates with critical values that might be dropped")
+            self.results["Duplicate Resolution Quality"] = "WARNING"
+            return False
+        elif dupes_count is not None and dupes_count > 0:
+            self.logger.info("Duplicates found but no critical values would be lost")
+            self.results["Duplicate Resolution Quality"] = "PASS"
+            return True
+        elif dupes_count == 0:
+            self.logger.info("No duplicates found")
+            self.results["Duplicate Resolution Quality"] = "PASS"
+            return True
+        else:
+            self.results["Duplicate Resolution Quality"] = "INCONCLUSIVE"
+            return False

@@ -51,10 +51,73 @@ def determine_root_path():
     # Fallback to current directory
     return os.path.abspath(os.getcwd())
 
+def determine_stata_command():
+    """
+    Find the appropriate Stata command for the current system.
+    Tries various common Stata executable names and locations.
+    """
+    username = getpass.getuser()
+    
+    # Define user-specific Stata commands
+    user_stata_commands = {
+        "jelkeclarysse": "stata-mp",
+        "ugurdiktas": "/Applications/Stata/StataBE.app/Contents/MacOS/stataBE"  # Set exact path for ugurdiktas
+    }
+    
+    # Return specific command for current user if it exists
+    if username in user_stata_commands:
+        return user_stata_commands[username]
+    
+    # Check for common Mac Stata installations for Apple Silicon
+    mac_specific_paths = [
+        "/Applications/Stata/StataBE.app/Contents/MacOS/stataBE",
+        "/Applications/Stata/StataSE.app/Contents/MacOS/stataSE",
+        "/Applications/Stata/StataMP.app/Contents/MacOS/stataMP",
+        "/Applications/Stata/Stata.app/Contents/MacOS/stata"
+    ]
+    
+    for path in mac_specific_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Try to locate Stata executable in common locations
+    possible_commands = ["stata", "stata-se", "stata-mp", "stata-be", "StataMP-64", "StataMP", "StataSE-64", "StataSE", "StataBE"]
+    
+    # Windows-specific paths
+    if os.name == 'nt':
+        program_files = os.environ.get('PROGRAMFILES', 'C:\\Program Files')
+        stata_paths = [
+            os.path.join(program_files, "Stata18", cmd + ".exe") for cmd in ["StataSE-64", "StataMP-64", "Stata-64", "StataBE-64"]
+        ] + [
+            os.path.join(program_files, "Stata17", cmd + ".exe") for cmd in ["StataSE-64", "StataMP-64", "Stata-64", "StataBE-64"]
+        ]
+        
+        for path in stata_paths:
+            if os.path.exists(path):
+                return f'"{path}"'  # Return with quotes for paths with spaces
+    
+    # For macOS/Linux, try commands directly (should be in PATH)
+    for cmd in possible_commands:
+        try:
+            # Check if command exists by running 'which' or 'where'
+            if os.name == 'nt':
+                check_cmd = ["where", cmd]
+            else:
+                check_cmd = ["which", cmd]
+            
+            result = subprocess.run(check_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode == 0:
+                return cmd
+        except:
+            pass
+    
+    # Default to stata-se if nothing else is found
+    return "stata-se"
+
 # Set up logging
 def setup_logging(root_dir):
     """Configure logging to file and console."""
-    log_dir = os.path.join(root_dir, "tests", "logs")
+    log_dir = os.path.join(root_dir, "3_logfiles", "test_logs")
     os.makedirs(log_dir, exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -71,6 +134,33 @@ def setup_logging(root_dir):
     )
     return logging.getLogger(), timestamp, log_file
 
+def extract_test_results(output_text):
+    """Extract test results from log output."""
+    results = []
+    
+    # Look for PASS/FAIL/WARNING pattern in logs
+    pattern = r"([\w\s\-]+):\s+(PASS|FAIL|WARNING|PARTIAL|INCONCLUSIVE)"
+    
+    for match in re.finditer(pattern, output_text):
+        test_name = match.group(1).strip()
+        result = match.group(2)
+        
+        # Try to extract notes/details
+        notes = ""
+        # Look for contextual information about this test (usually follows the result line)
+        context_match = re.search(rf"{re.escape(test_name)}[^\n]*\n\s+(.+?)(?:\n\n|\n[A-Z])", output_text, re.DOTALL)
+        if context_match:
+            notes = context_match.group(1).strip()
+        
+        results.append({
+            "test_category": "Data Integrity",
+            "test_name": test_name,
+            "result": result,
+            "notes": notes
+        })
+    
+    return results
+
 def run_python_test(script_path, root_dir):
     """Run a Python-based test script."""
     logger.info(f"Running Python test: {script_path}")
@@ -85,13 +175,17 @@ def run_python_test(script_path, root_dir):
         if result.returncode != 0:
             logger.error(f"Python test failed with return code {result.returncode}")
             logger.error(f"Error output: {result.stderr}")
-            return False, result.stderr
+            return False, result.stderr, []
         else:
             logger.info(f"Python test completed successfully")
-            return True, result.stdout
+            
+            # Try to extract structured test results
+            test_results = extract_test_results(result.stdout)
+            
+            return True, result.stdout, test_results
     except Exception as e:
         logger.error(f"Error running Python test: {str(e)}")
-        return False, str(e)
+        return False, str(e), []
 
 def run_stata_test(script_path, root_dir):
     """Run a Stata-based test script."""
@@ -104,11 +198,19 @@ def run_stata_test(script_path, root_dir):
         f.write(f'do "{script_path}"\n')
     
     try:
-        # Determine Stata command based on OS
-        stata_cmd = "stata-mp" if os.name != "nt" else "stata-mp"
+        # Get appropriate Stata command for this system
+        stata_cmd = determine_stata_command()
+        logger.info(f"Using Stata command: {stata_cmd}")
         
+        # Check if Stata command includes full path with spaces (Windows)
+        if stata_cmd.startswith('"') and stata_cmd.endswith('"'):
+            # Remove quotes and split into path and arguments
+            cmd_parts = [stata_cmd.strip('"'), "-b", "do", temp_script]
+        else:
+            cmd_parts = [stata_cmd, "-b", "do", temp_script]
+            
         result = subprocess.run(
-            [stata_cmd, "-b", "do", temp_script],
+            cmd_parts,
             capture_output=True,
             text=True,
             check=False
@@ -121,60 +223,82 @@ def run_stata_test(script_path, root_dir):
         if result.returncode != 0:
             logger.error(f"Stata test failed with return code {result.returncode}")
             logger.error(f"Error output: {result.stderr}")
-            return False, result.stderr
+            return False, result.stderr, []
         else:
             logger.info(f"Stata test completed successfully")
-            return True, result.stdout
+            
+            # Try to extract structured test results
+            test_results = []
+            
+            # Extract detailed test results from edge_case_tests.do output
+            if "edge_case_tests.do" in script_path:
+                pattern = r"(\w+[\s\w]*?):\s+(PASS|FAIL|ERROR|WARNING|INCONCLUSIVE)\s*(.+?)(?=\n\n|\Z)"
+                for match in re.finditer(pattern, result.stdout, re.DOTALL):
+                    test_name = match.group(1).strip()
+                    result_val = match.group(2)
+                    notes = match.group(3).strip() if match.group(3) else ""
+                    
+                    test_results.append({
+                        "test_category": "Edge Cases",
+                        "test_name": test_name,
+                        "result": result_val,
+                        "notes": notes
+                    })
+            
+            return True, result.stdout, test_results
     except Exception as e:
         logger.error(f"Error running Stata test: {str(e)}")
         # Clean up
         if os.path.exists(temp_script):
             os.remove(temp_script)
-        return False, str(e)
+        return False, str(e), []
 
-def parse_test_results(root_dir):
-    """Parse test results from all the Excel files generated by the tests."""
-    logger.info("Parsing test results")
+def collect_test_results(root_dir, all_script_results):
+    """Collect test results from all sources into a standardized format."""
+    logger.info("Collecting all test results")
     
-    # Find all Excel result files
+    # Initialize combined results
+    combined_results = []
+    
+    # Process results from each script
+    for script_name, result_data in all_script_results.items():
+        if "test_results" in result_data and result_data["test_results"]:
+            # Add these results to the combined list
+            combined_results.extend(result_data["test_results"])
+    
+    # Find all Excel result files as backup
     result_files = glob.glob(os.path.join(root_dir, "tests", "*.xlsx"))
     result_files += glob.glob(os.path.join(root_dir, "tests", "logs", "*.xlsx"))
     
-    if not result_files:
-        logger.warning("No test result files found")
-        return None
+    # If we find Excel files, try to read them
+    if result_files and not combined_results:
+        logger.info(f"Found {len(result_files)} Excel result files")
+        for file in result_files:
+            try:
+                df = pd.read_excel(file)
+                # Convert DataFrame to list of dicts
+                file_results = df.to_dict('records')
+                combined_results.extend(file_results)
+                logger.info(f"Added {len(file_results)} results from {os.path.basename(file)}")
+            except Exception as e:
+                logger.error(f"Error reading Excel file {file}: {str(e)}")
     
-    # Combine results from all files
-    all_results = []
-    
-    for file in result_files:
-        try:
-            df = pd.read_excel(file)
-            # Add source file information
-            df['source_file'] = os.path.basename(file)
-            all_results.append(df)
-        except Exception as e:
-            logger.error(f"Error parsing result file {file}: {str(e)}")
-    
-    if not all_results:
-        logger.warning("No test results could be parsed")
-        return None
-    
-    # Combine all results
-    combined_results = pd.concat(all_results, ignore_index=True)
     return combined_results
 
-def generate_report(results_df, root_dir, timestamp):
+def generate_report(results, root_dir, timestamp):
     """Generate a combined HTML report from the test results."""
     logger.info("Generating combined report")
     
-    if results_df is None:
+    if not results:
         logger.error("No results data available for report generation")
-        return
+        return None, None
     
     # Create reports directory
     reports_dir = os.path.join(root_dir, "tests", "reports")
     os.makedirs(reports_dir, exist_ok=True)
+    
+    # Convert to DataFrame for easier processing
+    results_df = pd.DataFrame(results)
     
     # Generate summary statistics
     total_tests = len(results_df)
@@ -248,7 +372,8 @@ def generate_report(results_df, root_dir, timestamp):
                 'FAIL': 'fail',
                 'ERROR': 'error',
                 'WARNING': 'warning',
-                'PARTIAL': 'warning'
+                'PARTIAL': 'warning',
+                'INCONCLUSIVE': 'warning'
             }.get(row['result'], '')
             
             notes = row.get('notes', '')
@@ -284,17 +409,57 @@ def generate_report(results_df, root_dir, timestamp):
     
     return report_file, excel_file
 
+def is_stata_available(stata_cmd):
+    """Check if Stata is available with the given command."""
+    try:
+        # For full path to executable
+        if os.path.exists(stata_cmd):
+            cmd_parts = [stata_cmd, "-e", "display 1"]
+        # For Windows path with spaces
+        elif stata_cmd.startswith('"') and stata_cmd.endswith('"'):
+            cmd_parts = [stata_cmd.strip('"'), "-e", "display 1"]
+        # For command without path
+        else:
+            cmd_parts = [stata_cmd, "-e", "display 1"]
+            
+        result = subprocess.run(
+            cmd_parts,
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            timeout=5  # 5 second timeout
+        )
+        return result.returncode == 0
+    except (subprocess.SubprocessError, FileNotFoundError, OSError) as e:
+        logger.warning(f"Error checking Stata availability: {str(e)}")
+        return False
+
 def run_all_tests(root_dir):
     """Run all test suites."""
     logger.info(f"Running all tests from project root: {root_dir}")
     
+    # Define which tests to run
+    should_skip_stata = globals().get('skip_stata', False)
+    
+    # Check if Stata is available (if not skipping)
+    stata_available = False
+    if not should_skip_stata:
+        stata_cmd = globals().get('stata_cmd', determine_stata_command())
+        stata_available = is_stata_available(stata_cmd)
+        if not stata_available:
+            logger.warning(f"Stata not found or not working with command: {stata_cmd}")
+            logger.warning("Stata tests will be skipped. Use --stata argument to specify Stata path.")
+        else:
+            logger.info(f"Stata detected and working with command: {stata_cmd}")
+    
     # Define the test scripts to run
     test_scripts = [
         {"path": os.path.join(os.path.dirname(__file__), "test_framework.py"), "type": "python"},
-        {"path": os.path.join(os.path.dirname(__file__), "data_integrity_tests.py"), "type": "python"},
-        {"path": os.path.join(os.path.dirname(__file__), "stata_test_script.do"), "type": "stata"},
-        {"path": os.path.join(os.path.dirname(__file__), "edge_case_tests.do"), "type": "stata"}
+        {"path": os.path.join(os.path.dirname(__file__), "data_integrity_tests.py"), "type": "python"}
     ]
+    
+    # Only add Stata tests if Stata is available and not skipped
+    if stata_available and not should_skip_stata:
+        test_scripts.append({"path": os.path.join(os.path.dirname(__file__), "edge_case_tests.do"), "type": "stata"})
     
     # Run each test script
     results = {}
@@ -307,28 +472,40 @@ def run_all_tests(root_dir):
         # Check if script exists
         if not os.path.exists(script_path):
             logger.warning(f"Script not found: {script_path}")
-            results[script_name] = {"success": False, "output": "Script not found"}
+            results[script_name] = {
+                "success": False,
+                "output": "Script not found",
+                "test_results": []
+            }
             continue
         
         logger.info(f"Running {script_type} script: {script_name}")
         start_time = time.time()
         
         if script_type == "python":
-            success, output = run_python_test(script_path, root_dir)
+            success, output, test_results = run_python_test(script_path, root_dir)
         else:  # stata
-            success, output = run_stata_test(script_path, root_dir)
+            success, output, test_results = run_stata_test(script_path, root_dir)
         
         elapsed_time = time.time() - start_time
         logger.info(f"Completed in {elapsed_time:.2f} seconds with {'success' if success else 'failure'}")
         
-        results[script_name] = {"success": success, "output": output, "elapsed_time": elapsed_time}
+        results[script_name] = {
+            "success": success,
+            "output": output,
+            "elapsed_time": elapsed_time,
+            "test_results": test_results
+        }
+        
+        # Log test results summary
+        logger.info(f"Extracted {len(test_results)} test results from {script_name}")
     
-    # Parse and combine test results
-    combined_results = parse_test_results(root_dir)
+    # Collect and combine all test results
+    all_results = collect_test_results(root_dir, results)
     
     # Generate report
-    if combined_results is not None:
-        report_file, excel_file = generate_report(combined_results, root_dir, timestamp)
+    if all_results:
+        report_file, excel_file = generate_report(all_results, root_dir, timestamp)
         logger.info(f"Full test suite completed. Report at: {report_file}")
         logger.info(f"Combined results at: {excel_file}")
     else:
@@ -340,6 +517,10 @@ def run_all_tests(root_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run all test suites for data cleaning pipeline')
     parser.add_argument('--root', required=False, help='Path to project root directory')
+    parser.add_argument('--tests', required=False, help='Comma-separated list of specific test categories to run (default: all)')
+    parser.add_argument('--stata', required=False, help='Path to Stata executable (e.g., stata-mp, stata-se, or full path)')
+    parser.add_argument('--skip-stata', action='store_true', help='Skip Stata tests entirely')
+    parser.add_argument('--python-only', action='store_true', help='Run only Python tests')
     
     args = parser.parse_args()
     
@@ -362,9 +543,29 @@ if __name__ == "__main__":
     tests_dir = os.path.join(root_dir, "tests")
     os.makedirs(tests_dir, exist_ok=True)
     
+    # Configure Stata
+    if args.skip_stata or args.python_only:
+        logger.info("Stata tests will be skipped (--skip-stata or --python-only flag set)")
+        skip_stata = True
+    else:
+        skip_stata = False
+        # Check for Stata on the system
+        stata_cmd = args.stata if args.stata else determine_stata_command()
+        logger.info(f"Using Stata command: {stata_cmd}")
+        
+        # Make stata_cmd available to all functions
+        globals()['stata_cmd'] = stata_cmd
+    
     # Start and time the test suite
     start_time = time.time()
     logger.info(f"Starting test suite run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Run all tests
+    results = run_all_tests(root_dir)
+    
+    # Calculate and log total time
+    total_time = time.time() - start_time
+    logger.info(f"Test suite completed in {total_time:.2f} seconds")
     
     # Run all tests
     results = run_all_tests(root_dir)
@@ -383,9 +584,23 @@ if __name__ == "__main__":
     success_count = sum(1 for result in results.values() if result["success"])
     print(f"Scripts: {success_count}/{len(results)} completed successfully")
     
+    # Count total test results
+    total_test_results = sum(len(result["test_results"]) for result in results.values())
+    
+    # Count passing tests
+    passing_tests = sum(
+        sum(1 for tr in result["test_results"] if tr["result"] == "PASS")
+        for result in results.values()
+    )
+    
+    if total_test_results > 0:
+        pass_percent = (passing_tests / total_test_results) * 100
+        print(f"Tests: {passing_tests}/{total_test_results} passed ({pass_percent:.1f}%)")
+    
     for script_name, result in results.items():
         status = "SUCCESS" if result["success"] else "FAILURE"
         time_str = f"{result['elapsed_time']:.2f}s" if "elapsed_time" in result else "N/A"
-        print(f"  - {script_name}: {status} ({time_str})")
+        test_count = len(result["test_results"])
+        print(f"  - {script_name}: {status} ({time_str}) - {test_count} tests")
     
     print("="*80)
