@@ -1,6 +1,6 @@
 ********************************************************************************
 * 1_ps_students_anonymize.do
-* 
+* --------------------------------------------------------------------------------------------
 * Purpose: 
 *   - Import **all** PS Students .sav files (finished & unfinished) using a 
 *     wildcard approach (PoF_PS_Students*.sav).
@@ -9,7 +9,8 @@
 *   - Save sensitive data (IP, location, email, names) to a separate file.
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 3.03.2025
 * Version: Stata 18
 ********************************************************************************
 

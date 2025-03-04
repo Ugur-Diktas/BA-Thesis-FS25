@@ -1,6 +1,8 @@
 ********************************************************************************
 * 1_ps_parents_anonymize.do
-*
+* ------------------------------------------------------------------------------
+* Data needed: raw_data files
+* Data output: ps_par_all_anon.dta
 * Purpose:
 *   - Import **all** PS Parents .sav files (finished & unfinished) using a 
 *     wildcard approach (PoF_PS_Parents*.sav).
@@ -9,7 +11,8 @@
 *   - Save sensitive data (IP, location, parent email and names) to a separate file.
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 03.03.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -35,7 +38,7 @@ log using "${dodir_log}/ps_parents_anonymize.log", replace
 
 ********************************************************************************
 * 1. LOAD THE DATA
-*    - Import and combine all .sav files matching "PoF_PS_Parents*.sav"
+*    a. Import and combine all .sav files matching "PoF_PS_Parents*.sav"
 ********************************************************************************
 
 local initial_dir "`c(pwd)'"   // preserve current directory

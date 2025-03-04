@@ -1,6 +1,8 @@
 ********************************************************************************
 * 4_ps_parents_clean_beliefs.do
-*
+ * --------------------------------------------------------------------------------------------
+* Data needed: ps_par_cleaned.dta
+* Data output: ps_par_clean_beliefs.dta
 * Purpose:
 * - Load the cleaned PS Parents data (ps_par_cleaned.dta).
 * - Rename & reshape key belief–related variables (e.g. belief_fit, like_task,
@@ -12,7 +14,8 @@
 *   to the original Likert scale.)
 * - Save the updated dataset.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Laste edit: 03.03.2025
 * Version: Stata 18
 ********************************************************************************
 

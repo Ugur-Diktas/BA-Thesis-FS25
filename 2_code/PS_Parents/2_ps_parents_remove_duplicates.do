@@ -1,6 +1,8 @@
 ********************************************************************************
 * 2_ps_parents_remove_duplicates.do
-*
+ * --------------------------------------------------------------------------------------------
+* Data needed: ps_par_all_anon.dta
+* Data output: ps_par_cleaned.dta
 * Purpose:
 *   - Load anonymised PS Parents data.
 *   - Remove duplicate responses based on ResponseId.
@@ -8,7 +10,8 @@
 *   - Keep only the final (latest) response within each duplicate group (based on StartDate).
 *   - Save cleaned dataset.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 03.03.2025
 * Version: Stata 18
 ********************************************************************************
 

@@ -72,7 +72,7 @@ if !_rc {
     gen duration_mins = Duration__in_seconds_ / 60
     label var duration_mins "Total duration (mins)"
 }
-
+/*
 *--- Create duration variables from click timestamps ---
 * Identify variables matching t_*_First_Click:
 ds t_*_First_Click
@@ -122,7 +122,143 @@ while "`1'" != "" {
     }
     macro shift
 }
+*/
+*---------------------------------------------------------------
+* 2. CLEAN & CREATE DURATION VARIABLES_jelke edit (for now)
+*---------------------------------------------------------------
+*Make duration variables
+ds t_*_First_Click
+ds `r(varlist)'
+foreach var of varlist `r(varlist)' {
+    count if missing(`var')
+    if r(N) == _N {
+        display "`var' is missing"
+    } 
+    else {
+        display "`var' is not missing"
+        local varname_stripped : subinstr local var "_First_Click" ""
+		local varname: subinstr local varname_stripped "t_" ""
+		gen duration_`varname' = .
+		replace duration_`varname' = (`varname_stripped'_Page_Submit)/60
+    }
+}
 
+* Label the variables if they exist
+ds duration_*
+
+foreach var of varlist `r(varlist)' {
+    if "`var'" == "duration_consent1" {
+        label variable `var' "Consent page 1"
+    }
+    else if "`var'" == "duration_sure" {
+        label variable `var' "Sure"
+    }
+    else if "`var'" == "duration_consent2" {
+        label variable `var' "Consent page 2"
+    }
+    else if "`var'" == "duration_background_1_" {
+        label variable `var' "Background page 1"
+    }
+    else if "`var'" == "duration_background_2_" {
+        label variable `var' "Background page 2"
+    }
+	else if "`var'" == "duration_child_prefs_1" {
+        label variable `var' "Own prefs page 1"
+    }
+	else if "`var'" == "duration_child_prefs_2" {
+        label variable `var' "Own prefs page 2"
+    }
+	else if "`var'" == "duration_mother_prefs_1" {
+        label variable `var' "Mothers prefs page 1"
+    }
+	else if "`var'" == "duration_mother_prefs_2" {
+        label variable `var' "Mother's prefs page 2"
+    }
+	else if "`var'" == "duration_father_prefs_1" {
+        label variable `var' "Father's prefs page 1"
+    }
+	else if "`var'" == "duration_father_prefs_2" {
+        label variable `var' "Father's prefs page 2"
+    }
+	else if "`var'" == "duration_motivation_child" {
+        label variable `var' "Own motivation factors"
+    }
+	else if "`var'" == "duration_motivation_mother" {
+        label variable `var' "Mother's motivation factors"
+    }
+	else if "`var'" == "duration_motivation_father" {
+        label variable `var' "Father's motivation factors"
+    }
+	else if "`var'" == "duration_beliefs_1_" {
+        label variable `var' "Beliefs page 1"
+    }
+	else if "`var'" == "duration_beliefs_2_" {
+        label variable `var' "Beliefs page 2"
+    }
+    else if "`var'" == "duration_debriefing_1" {
+        label variable `var' "Debriefing page 1"
+    }
+    else if "`var'" == "duration_debriefing_2" {
+        label variable `var' "Debriefing page 2"
+    }
+	else if "`var'" == "duration_contract_occ_" {
+        label variable `var' "Contract occupation"
+    }
+	else if "`var'" == "duration_ta_occs_" {
+        label variable `var' "TA occupations"
+    }
+	else if "`var'" == "duration_reject_occs_" {
+        label variable `var' "Rejection occupations"
+    }
+	else if "`var'" == "duration_apply_" {
+        label variable `var' "Application occupations"
+    }
+	else if "`var'" == "duration_offers_" {
+        label variable `var' "Offers occupations"
+    }
+	else if "`var'" == "duration_perc_contract_" {
+        label variable `var' "Advantages/disadvantages of contract occ"
+    }
+	else if "`var'" == "duration_perc_disadv_hc_" {
+        label variable `var' "Advantages/disadvantages of HC"
+    }
+	else if "`var'" == "duration_suggest_hc_" {
+        label variable `var' "Suggestion HC (no contract or TA)"
+    }
+	else if "`var'" == "duration_no_consider_hc_" {
+        label variable `var' "Why considered or not HC"
+    }
+	else if "`var'" == "duration_suggest_hc_2_" {
+        label variable `var' "Suggestion HC (no contract, but TA)"
+    }
+	else if "`var'" == "duration_no_appr_hc_" {
+        label variable `var' "Why no TA in HC"
+    }
+	else if "`var'" == "duration_concern_contract_" {
+        label variable `var' "Others' concerns p1 (contract)"
+    }
+	else if "`var'" == "duration_reason_concern_" {
+        label variable `var' "Others' concerns p2 (contract)"
+    }
+	else if "`var'" == "duration_social_skills_" {
+        label variable `var' "Social skills"
+    }
+	else if "`var'" == "duration_gender_id" {
+        label variable `var' "Gender identity"
+    }
+	else if "`var'" == "duration_belief_society_" {
+        label variable `var' "Societal perception"
+    }
+	else if "`var'" == "duration_ses_1" {
+        label variable `var' "SES page 1"
+    }
+	else if "`var'" == "duration_ses_2_" {
+        label variable `var' "SES page 2"
+    }
+    else if "`var'" == "duration_end" {
+        label variable `var' "Final page"
+    }
+}
 *---------------------------------------------------------------
 * 3. CLEAN HOME SITUATION
 *---------------------------------------------------------------
