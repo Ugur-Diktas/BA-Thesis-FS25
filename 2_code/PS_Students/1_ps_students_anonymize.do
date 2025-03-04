@@ -32,7 +32,7 @@ else {
 
 * Start logging
 cap log close
-log using "${dodir_log}/students_anonymize.log", replace
+log using "${dodir_log}/1_ps_students_anonymize.log", replace
 
 ********************************************************************************
 * 1. LOAD THE DATA
@@ -122,6 +122,7 @@ preserve
     rename (LocationLatitude LocationLongitude name_child_1 name_child_2) ///
            (location_lat location_long stu_first_name stu_last_name)
     destring location_lat location_long, replace
+    cap mkdir "${processed_data}/PS_Students"
     save "${sensitive_data}/ps_stu_sensitive_only.dta", replace
 restore
 
@@ -131,6 +132,7 @@ drop IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_
 * 6. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
 
+cap mkdir "${processed_data}/PS_Students"
 save "${processed_data}/PS_Students/ps_stu_all_anon.dta", replace
 
 log close

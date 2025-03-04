@@ -41,7 +41,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/students_clean_parent_occs.log", replace text
+log using "${dodir_log}/8_ps_parents_clean_parent_occs.log", replace text
 
 timer clear
 timer on 1

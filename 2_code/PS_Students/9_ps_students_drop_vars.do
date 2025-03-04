@@ -10,7 +10,7 @@ clear all
 version 18.0
 set more off
 cap log close
-log using "${dodir_log}/students_drop_vars.log", replace text
+log using "${dodir_log}/9_ps_students_drop_vars.log", replace text
 timer clear
 timer on 1
 

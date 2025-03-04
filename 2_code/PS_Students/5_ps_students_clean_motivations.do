@@ -25,7 +25,7 @@ set more off
 
 // Log initialization
 cap log close
-log using "${dodir_log}/students_clean_motivations.log", replace text
+log using "${dodir_log}/5_ps_students_clean_motivations.log", replace text
 
 // Performance monitoring
 timer clear

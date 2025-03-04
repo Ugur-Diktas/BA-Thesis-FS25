@@ -24,6 +24,9 @@ clear all
 set more off
 version 18.0
 
+ls "${processed_data}/PS_Parents"
+
+
 * Conditionally enable trace if debugging is requested
 if "${debug}" == "yes" {
     set trace on
@@ -34,7 +37,7 @@ else {
 
 * Start logging
 cap log close
-log using "${dodir_log}/ps_parents_anonymize.log", replace
+log using "${dodir_log}/1_ps_parents_anonymize.log", replace
 
 ********************************************************************************
 * 1. LOAD THE DATA

@@ -1,14 +1,13 @@
 ********************************************************************************
 // 1_master.do
 // Purpose : Master do-file that runs all cleaning do-files in order
-//           for PS_Students and PS_Parents.
+//           for Students and Parents.
+// 
+// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 04.03.2025
+// Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
 //
-// Usage   : 
-//   1) Place your raw data files in 1_data/raw
-//   2) Then just run this 1_master.do to produce anonymised & cleaned data.
-//	 !! Before runtime, please make sure to cd your Stata terminal lsto root
-//
-// Author  : Ugur Diktas-Jelke Clarysse, BA Thesis FS25, 01.03.2025
+// This code is proprietary and may not be reproduced, distributed, or modified
+// without prior written consent.
 ********************************************************************************
 
 clear all
@@ -36,6 +35,7 @@ log using "3_logfiles/1_master.log", replace
 quietly do "2_code/2_globals.do"
 
 // 4. Clean the Students Data
+
 do "${dodir_par_stu}/1_ps_students_anonymize.do"
 do "${dodir_par_stu}/2_ps_students_remove_duplicates.do"
 do "${dodir_par_stu}/3_ps_students_clean_relabeling.do"
@@ -47,6 +47,7 @@ do "${dodir_par_stu}/8_ps_students_clean_parent_occs.do"
 do "${dodir_par_stu}/9_ps_students_drop_vars.do"
 
 // 5. Clean the Parents Data
+
 do "${dodir_par_par}/1_ps_parents_anonymize.do"
 do "${dodir_par_par}/2_ps_parents_remove_duplicates.do"
 do "${dodir_par_par}/3_ps_parents_clean_relabeling.do"

@@ -33,7 +33,7 @@ else {
 
 // Start logging
 cap log close
-log using "${dodir_log}/students_clean_beliefs.log", replace text
+log using "${dodir_log}/4_ps_students_clean_beliefs.log", replace text
 
 timer clear
 timer on 1

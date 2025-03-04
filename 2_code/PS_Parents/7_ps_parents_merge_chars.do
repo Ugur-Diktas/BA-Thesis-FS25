@@ -38,7 +38,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/8_ps_parents_merge_chars.log", replace text
+log using "${dodir_log}/7_ps_parents_merge_chars.log", replace text
 
 timer clear
 timer on 1

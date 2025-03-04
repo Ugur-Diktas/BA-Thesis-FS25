@@ -30,7 +30,7 @@ else {
 
 * Start logging
 cap log close
-log using "${dodir_log}/students_remove_duplicates.log", replace text
+log using "${dodir_log}/2_ps_students_remove_duplicates.log", replace text
 
 ********************************************************************************
 * 1. LOAD ANONYMIZED DATA

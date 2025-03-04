@@ -30,7 +30,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/students_clean_relabeling.log", replace text
+log using "${dodir_log}/3_ps_students_clean_relabeling.log", replace text
 
 timer clear
 timer on 1

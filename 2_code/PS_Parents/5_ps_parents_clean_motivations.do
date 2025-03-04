@@ -31,7 +31,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/ps_parents_clean_motivations.log", replace text
+log using "${dodir_log}/5_ps_parents_clean_motivations.log", replace text
 
 timer clear
 timer on 1

@@ -26,7 +26,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/ps_parents_clean_concerns.log", replace text
+log using "${dodir_log}/6_ps_parents_cleaning_concerns.log", replace text
 
 timer clear
 timer on 1
