@@ -46,7 +46,7 @@ timer on 1
 * 1. LOAD THE CLEANED DATA
 *---------------------------------------------------------------
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+use "${processed_data}/PS_Students/2_ps_students.dta", clear
 
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
@@ -475,7 +475,7 @@ label var compl_end "Completed final questions"
 *---------------------------------------------------------------
 di as txt "----- Compressing and saving dataset -----"
 compress
-save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
+save "${processed_data}/PS_Students/3_ps_students.dta", replace
 
 timer off 1
 timer list

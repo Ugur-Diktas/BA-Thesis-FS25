@@ -44,7 +44,7 @@ timer on 1
 * 1. LOAD THE CLEANED DATA
 ********************************************************************************
 di as txt "----- Loading dataset: ps_par_clean_beliefs.dta -----"
-quietly use "${processed_data}/PS_Parents/ps_par_clean_beliefs.dta", clear
+use "${processed_data}/PS_Parents/4_ps_parents.dta", clear
 di as txt "Loaded ps_par_clean_beliefs.dta: `c(N)' obs, `c(k)' vars"
 if _N == 0 {
     di as error "ERROR: No observations in ps_par_clean_beliefs.dta."
@@ -161,7 +161,7 @@ drop motFactor* fac_this* fac_other*
 * 4. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
 compress
-save "${processed_data}/PS_Parents/ps_par_clean_motivations.dta", replace
+save "${processed_data}/PS_Parents/5_ps_parents.dta", replace
 
 timer off 1
 timer list

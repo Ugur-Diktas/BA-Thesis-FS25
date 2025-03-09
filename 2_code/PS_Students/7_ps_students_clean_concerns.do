@@ -44,7 +44,7 @@ timer on 1
 * 1. LOAD DATA
 ********************************************************************************
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+use "${processed_data}/PS_Students/6_ps_students.dta", clear
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 if _N == 0 {
@@ -110,7 +110,7 @@ forval i = 1/6 {
 * 3. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
 compress
-save "${processed_data}/PS_Students/ps_stu_clean_concerns.dta", replace
+save "${processed_data}/PS_Students/7_ps_students.dta", replace
 
 timer off 1
 timer list

@@ -139,6 +139,6 @@ drop IPAddress LocationLatitude LocationLongitude email name_child_1 name_child_
 ********************************************************************************
 
 cap mkdir "${processed_data}/PS_Students"
-save "${processed_data}/PS_Students/ps_stu_all_anon.dta", replace
+save "${processed_data}/PS_Students/1_ps_students.dta", replace
 
 log close

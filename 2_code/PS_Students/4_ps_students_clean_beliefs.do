@@ -49,7 +49,7 @@ timer on 1
 * 1. LOAD THE CLEANED DATA
 ********************************************************************************
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+use "${processed_data}/PS_Students/3_ps_students.dta", clear
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 if _N == 0 {
@@ -357,7 +357,7 @@ foreach q_var in friend_belief_fit friend_like_task friend_colleague_fit friend_
 ********************************************************************************
 di as txt "----- Compressing and saving dataset -----"
 compress
-save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
+save "${processed_data}/PS_Students/4_ps_students.dta", replace
 
 timer off 1
 timer list

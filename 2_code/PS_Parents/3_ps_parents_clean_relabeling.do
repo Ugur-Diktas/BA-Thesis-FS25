@@ -44,7 +44,7 @@ timer on 1
 * 1. LOAD DATA 
 ********************************************************************************
 di as txt "----- Loading dataset: ps_par_cleaned.dta -----"
-quietly use "${processed_data}/PS_Parents/ps_par_cleaned.dta", clear
+use "${processed_data}/PS_Parents/2_ps_parents.dta", clear
 
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
@@ -430,7 +430,7 @@ drop *_First_Click* *_Last_Click* *_Page_Submit* *_Click_Count* Duration__in_sec
 ********************************************************************************
 di as txt "----- Compressing and saving dataset -----"
 compress
-save "${processed_data}/PS_Parents/ps_par_cleaned.dta", replace
+save "${processed_data}/PS_Parents/3_ps_parents.dta", replace
 
 timer off 1
 timer list

@@ -43,7 +43,7 @@ timer on 1
 // 1. LOAD THE CLEANED DATA
 //----------------------------------------------------------------------------
 di as txt "----- Loading dataset: ps_par_clean_motivations.dta -----"
-quietly use "${processed_data}/PS_Parents/ps_par_clean_motivations.dta", clear
+use "${processed_data}/PS_Parents/5_ps_parents.dta", clear
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 if _N == 0 {
@@ -93,7 +93,7 @@ else {
 //----------------------------------------------------------------------------
 di as txt "----- Compressing and saving the intermediate dataset -----"
 compress
-save "${processed_data}/PS_Parents/temp_par_clean_other.dta", replace
+save "${processed_data}/PS_Parents/6_ps_parents.dta", replace
 
 timer off 1
 timer list

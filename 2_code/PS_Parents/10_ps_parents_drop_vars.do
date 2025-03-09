@@ -40,7 +40,7 @@ timer on 1
 // LOAD MERGED DATA
 // -----------------------------------------------------------------------------
 di as txt "----- Loading dataset: ps_par_merge_chars.dta -----"
-use "${processed_data}/PS_Parents/ps_par_merge_chars.dta", clear
+use "${processed_data}/PS_Parents/9_ps_parents.dta", clear
 di as txt "Observations: `c(N)', Variables: `c(k)'"
 
 // DROP UNNEEDED VARIABLES

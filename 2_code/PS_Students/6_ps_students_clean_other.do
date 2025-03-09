@@ -48,7 +48,7 @@ timer on 1
 // 1. LOAD THE CLEANED DATA
 //----------------------------------------------------------------------------
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+use "${processed_data}/PS_Students/5_ps_students.dta", clear
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 if _N == 0 {
@@ -121,7 +121,7 @@ restore
 //----------------------------------------------------------------------------
 di as txt "----- Compressing and saving the updated dataset -----"
 compress
-save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
+save "${processed_data}/PS_Students/6_ps_students.dta", replace
 
 timer off 1
 timer list

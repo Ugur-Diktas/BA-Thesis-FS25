@@ -52,7 +52,7 @@ timer on 1
 //----------------------------------------------------------------------------
 di as txt "----- Preparing characteristics dataset -----"
 
-use "${data_to_merge}/skill_intensity_data_with_apprentice_characteristics.dta", clear
+use "${processed_data}/PS_Students/7_ps_students.dta", clear
 
 // Adjust LABB codes for specific occupations
 replace labb_code = 1000004 if occname_skill == "Solarinstallateur/in EFZ"
@@ -190,7 +190,7 @@ foreach x of local pref_vars {
 // 3. FINAL HOUSEKEEPING & SAVE
 //----------------------------------------------------------------------------
 compress
-save "${processed_data}/PS_Students/ps_stu_chars_merged.dta", replace
+save "${processed_data}/PS_Students/8_ps_students.dta", replace
 
 timer off 1
 timer list

@@ -46,7 +46,7 @@ timer on 1
 //    (Based on raw text in mother_occ and father_occ)
 //----------------------------------------------------------------------------
 di as txt "----- Step 1: Assign preliminary ISCED codes to parent occupations -----"
-use "${processed_data}/PS_Students/ps_stu_chars_merged.dta", clear
+use "${processed_data}/PS_Parents/8_ps_parents.dta", clear
 
 /* HOW CAN WE IMPLEMENT THIS FILE?
 
@@ -257,7 +257,7 @@ merge 1:1 ResponseId using `merged_father', nogen
 */
 
 compress
-save "${processed_data}/PS_Students/ps_stu_clean_parent_occs.dta", replace
+save "${processed_data}/PS_Parents/9_ps_parents.dta", replace
 
 timer off 1
 timer list

@@ -40,7 +40,7 @@ timer on 1
 // 1. DATA VALIDATION
 *******************************************************************************
 
-quietly use "${processed_data}/PS_Students/ps_stu_cleaned.dta", clear
+use "${processed_data}/PS_Students/4_ps_students.dta", clear
 
 // Dataset validation checks
 if _N == 0 {
@@ -144,7 +144,7 @@ if _rc {
 
 // Dataset preservation
 compress
-save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
+save "${processed_data}/PS_Students/5_ps_students.dta", replace
 
 // Performance report
 timer off 1

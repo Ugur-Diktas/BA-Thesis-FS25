@@ -32,7 +32,7 @@ timer on 1
 
 // LOAD DATA
 // -----------------------------------------------------------------------------
-use "${processed_data}/PS_Students/ps_stu_clean_parent_occs.dta", clear
+use "${processed_data}/PS_Students/9_ps_students.dta", clear
 
 // VARIABLE CLEANING: DROP UNNEEDED VARIABLES
 // -----------------------------------------------------------------------------

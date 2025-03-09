@@ -45,7 +45,7 @@ timer on 1
 // 1. LOAD DATA
 //----------------------------------------------------------------------------
 di as txt "----- Loading dataset: temp_par_clean_parent_occs.dta -----"
-use "${processed_data}/PS_Parents/temp_par_clean_parent_occs.dta", clear
+use "${processed_data}/PS_Parents/7_ps_parents.dta", clear
 di as txt "Loaded temp_par_clean_parent_occs.dta: `c(N)' obs"
 
 //----------------------------------------------------------------------------
@@ -96,7 +96,7 @@ foreach p of local pref_vars {
 // 3. FINAL HOUSEKEEPING & SAVE
 //----------------------------------------------------------------------------
 compress
-save "${processed_data}/PS_Parents/ps_par_merge_chars.dta", replace
+save "${processed_data}/PS_Parents/8_ps_parents.dta", replace
 
 timer off 1
 timer list

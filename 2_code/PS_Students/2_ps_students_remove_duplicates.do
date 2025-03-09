@@ -43,7 +43,7 @@ log using "${dodir_log}/2_ps_students_remove_duplicates.log", replace text
 * 1. LOAD ANONYMIZED DATA
 ********************************************************************************
 
-use "${processed_data}/PS_Students/ps_stu_all_anon.dta", clear
+use "${processed_data}/PS_Students/1_ps_students.dta", clear
 
 * Remove duplicate ResponseId records:
 duplicates tag ResponseId, gen(dup_responseid)
@@ -97,6 +97,6 @@ drop email stu_first_name stu_last_name dup_email dup_name ///
      email_group name_group *_order
 
 compress
-save "${processed_data}/PS_Students/ps_stu_cleaned.dta", replace
+save "${processed_data}/PS_Students/2_ps_students.dta", replace
 
 log close

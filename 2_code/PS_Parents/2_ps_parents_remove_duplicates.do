@@ -43,7 +43,7 @@ log using "${dodir_log}/2_ps_parents_remove_duplicates.log", replace text
 * 1. LOAD ANONYMALISED DATA
 ********************************************************************************
 
-use "${processed_data}/PS_Parents/ps_par_all_anon.dta", clear
+use "${processed_data}/PS_Parents/1_ps_parents.dta", clear
 di as txt "Loaded PS Parents anonymised data: `c(N)' obs, `c(k)' vars"
 
 * Remove duplicate ResponseId records:
@@ -148,6 +148,6 @@ foreach var in par_email par_first_name par_last_name dup_email dup_name ///
 }
 
 compress
-save "${processed_data}/PS_Parents/ps_par_cleaned.dta", replace
+save "${processed_data}/PS_Parents/2_ps_parents.dta", replace
 
 log close

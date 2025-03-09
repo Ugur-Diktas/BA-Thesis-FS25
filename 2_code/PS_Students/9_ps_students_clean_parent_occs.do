@@ -50,7 +50,7 @@ timer on 1
 //----------------------------------------------------------------------------
 di as txt "----- Step 1: Assign preliminary ISCED codes to parent occupations -----"
 
-use "${processed_data}/PS_Students/ps_stu_chars_merged.dta", clear
+use "${processed_data}/PS_Students/8_ps_students.dta", clear
 
 // For each parent (mother and father), create a variable that holds a preliminary ISCED‐F field
 foreach x in mother father {
@@ -231,7 +231,7 @@ rename mother_occ_isced6_1 mother_occ_isced6_final
 rename father_occ_isced6_1 father_occ_isced6_final
 
 compress
-save "${processed_data}/PS_Students/ps_stu_clean_parent_occs.dta", replace
+save "${processed_data}/PS_Students/9_ps_students.dta", replace
 
 timer off 1
 timer list

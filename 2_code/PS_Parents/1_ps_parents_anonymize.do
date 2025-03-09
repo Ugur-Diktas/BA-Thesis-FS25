@@ -142,6 +142,6 @@ drop IPAddress LocationLatitude LocationLongitude RecipientEmail RecipientFirstN
 * 4. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
 
-save "${processed_data}/PS_Parents/ps_par_all_anon.dta", replace
+save "${processed_data}/PS_Parents/1_ps_parents.dta", replace
 
 log close
