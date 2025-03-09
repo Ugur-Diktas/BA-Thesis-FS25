@@ -1,14 +1,18 @@
 ********************************************************************************
- * 9_ps_parents_drop_vars.do
- * -----------------------------------------------------------------------------
- * Purpose:
- *   Finalise the PS Parents dataset by dropping extraneous variables, 
- *   reordering key variables, and producing the final cleaned file.
- *
- * Globals Needed:
- *   processed_data, dodir_log, debug
- *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* 10_ps_parents_drop_vars.do
+* ------------------------------------------------------------------------------
+* Data needed: temp_par_clean_parent_occs.dta
+* Data output: ps_parents_final.dta
+* Purpose:
+*   - Finalise the PS Parents dataset by dropping extraneous variables.
+*   - Reorder key variables for better readability and analysis.
+*   - Remove Qualtrics metadata, timing variables, and additional consent variables.
+*   - Remove free-text and repeated fields that are no longer needed.
+*   - Create final consent variable.
+*   - Produce the final cleaned file for analysis.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -24,7 +28,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/9_ps_parents_drop_vars.log", replace text
+log using "${dodir_log}/10_ps_parents_drop_vars.log", replace text
 
 timer clear
 timer on 1

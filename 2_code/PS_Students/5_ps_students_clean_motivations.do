@@ -1,16 +1,17 @@
-*******************************************************************************
+********************************************************************************
 * 5_ps_students_clean_motivations.do
-* Project:   PS Students Analysis
-* Purpose:   Cleans and transforms motivational factors data
-* Version:   2.0
-* Author:    BA Thesis Team (Jelke Clarysse & Ugur Diktas)
-* Date:      2025-03-03
-* History:   Revised for efficiency and clarity
-* Notes:     - Uses parallel processing structure
-*            - Implements improved error handling
-*            - Optimized loop structure for better performance
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_cleaned.dta
+* Data output: ps_stu_cleaned.dta
+* Purpose:
+*   - Process and transform motivational factor data for students
+*   - Create binary (0/1) variables for 12 motivational factors (e.g., salary, 
+*     flexibility, further education, math requirements)
+*   - Process factors for child, mother, and father perspectives
+*   - Label all variables for better interpretation
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 03.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

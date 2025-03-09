@@ -1,8 +1,20 @@
-/*******************************************************************************
-* 9_ps_students_drop_vars.do
-* -----------------------------------------------------------------------------
-* Matches structure from sample dataset provided - 01.03.2025
-*******************************************************************************/
+********************************************************************************
+* 10_ps_students_drop_vars.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_clean_parent_occs.dta
+* Data output: ps_stu_final.dta
+* Purpose:
+*   - Finalise the PS Students dataset by dropping extraneous variables. 
+*   - Remove Qualtrics metadata, survey process variables, and text variables.
+*   - Remove occupational preference variables and parental input variables.
+*   - Recode consent variables.
+*   - Order variables for better organization.
+*   - Produce the final cleaned file for analysis.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+********************************************************************************
 
 // SETUP ENVIRONMENT
 // -----------------------------------------------------------------------------
@@ -10,7 +22,7 @@ clear all
 version 18.0
 set more off
 cap log close
-log using "${dodir_log}/9_ps_students_drop_vars.log", replace text
+log using "${dodir_log}/10_ps_students_drop_vars.log", replace text
 timer clear
 timer on 1
 

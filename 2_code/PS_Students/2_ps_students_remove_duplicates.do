@@ -1,15 +1,18 @@
 ********************************************************************************
 * 2_ps_students_remove_duplicates.do
-* 
-* Purpose : 
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_all_anon.dta
+* Data output: ps_stu_cleaned.dta
+* Purpose: 
 *   - Load anonymised PS Students data.
 *   - Remove duplicate responses based on ResponseId.
 *   - Merge with sensitive data to check duplicates on email or name.
-*   - Remove non-first responses in each duplicate group.
+*   - Remove non-final responses in each duplicate group.
 *   - Save cleaned dataset.
 *
-* Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
-* Version : Stata 18
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
 ********************************************************************************
 
 ********************************************************************************

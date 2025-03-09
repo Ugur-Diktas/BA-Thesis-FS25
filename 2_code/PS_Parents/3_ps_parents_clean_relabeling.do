@@ -1,18 +1,18 @@
 ********************************************************************************
 * 3_ps_parents_clean_relabeling.do
- * --------------------------------------------------------------------------------------------
+* ------------------------------------------------------------------------------
 * Data needed: ps_par_cleaned.dta
-* Data output: ps_par_cleaned.dta"
+* Data output: ps_par_cleaned.dta
 * Purpose:
-* - Load cleaned PS Parents data (duplicates removed).
-* - Convert string variables to numeric (if needed).
-* - Create duration variables from Qualtrics timing data.
-* - Clean/rename background variables (e.g. home situation, track if available, 
-*   parent education).
-* - Save updated dataset.
+*   - Load cleaned PS Parents data (duplicates removed).
+*   - Convert string variables to numeric (if needed).
+*   - Create duration variables from Qualtrics timing data.
+*   - Clean/rename background variables (e.g. home situation, track if available, 
+*     parent education).
+*   - Save updated dataset.
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 03.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

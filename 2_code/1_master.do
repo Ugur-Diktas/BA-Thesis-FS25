@@ -3,7 +3,7 @@
 // Purpose : Master do-file that runs all cleaning do-files in order
 //           for Students and Parents.
 // 
-// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 04.03.2025
+// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 09.03.2025
 // Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
 //
 // This code is proprietary and may not be reproduced, distributed, or modified
@@ -20,7 +20,7 @@ if c(username) == "jelkeclarysse" {
 }
 
 if c(username) == "ugurdiktas" {
-    global root "/Users/ugurdiktas/Library/CloudStorage/OneDrive-UniversitätZürichUZH/3_STUDENTS/13_Cleaning"
+    global root "/Users/ugurdiktas/Library/CloudStorage/OneDrive-UniversitätZürichUZH/3_STUDENTS/13_Cleaning"
 }
 
 cd "${root}"
@@ -42,9 +42,10 @@ do "${dodir_par_stu}/3_ps_students_clean_relabeling.do"
 do "${dodir_par_stu}/4_ps_students_clean_beliefs.do"
 do "${dodir_par_stu}/5_ps_students_clean_motivations.do"
 do "${dodir_par_stu}/6_ps_students_clean_other.do"
-do "${dodir_par_stu}/7_ps_students_merge_chars.do"
-do "${dodir_par_stu}/8_ps_students_clean_parent_occs.do"
-do "${dodir_par_stu}/9_ps_students_drop_vars.do"
+do "${dodir_par_stu}/7_ps_students_clean_concerns.do"
+do "${dodir_par_stu}/8_ps_students_merge_chars.do"
+do "${dodir_par_stu}/9_ps_students_clean_parent_occs.do"
+do "${dodir_par_stu}/10_ps_students_drop_vars.do"
 
 // 5. Clean the Parents Data
 
@@ -54,8 +55,9 @@ do "${dodir_par_par}/3_ps_parents_clean_relabeling.do"
 do "${dodir_par_par}/4_ps_parents_clean_beliefs.do"
 do "${dodir_par_par}/5_ps_parents_clean_motivations.do"
 do "${dodir_par_par}/6_ps_parents_clean_other.do"
-do "${dodir_par_par}/7_ps_parents_merge_chars.do"
-do "${dodir_par_par}/8_ps_parents_clean_parent_occs.do"
-do "${dodir_par_par}/9_ps_parents_drop_vars.do"
+do "${dodir_par_par}/7_ps_parents_clean_concerns.do"
+do "${dodir_par_par}/8_ps_parents_merge_chars.do"
+do "${dodir_par_par}/9_ps_parents_clean_parent_occs.do"
+do "${dodir_par_par}/10_ps_parents_drop_vars.do"
 
 di "All cleaning do-files have been run successfully!"

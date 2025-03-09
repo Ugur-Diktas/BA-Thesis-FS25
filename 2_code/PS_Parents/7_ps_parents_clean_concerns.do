@@ -1,13 +1,17 @@
 ********************************************************************************
-* 6_ps_parents_clean_concerns.do
-* --------------------------------------------------------------------------------------------
-* Data needed: ps_par_clean_motivations.dta
-* Data output: 6_ps_parents_clean_concerns.do
+* 7_ps_parents_clean_concerns.do
+* ------------------------------------------------------------------------------
+* Data needed: temp_par_clean_other.dta
+* Data output: ps_par_clean_concerns.dta
 * Purpose:
-* - Process and transform parental concerns and make them readable
+*   - Process and transform parental concerns and make them readable
+*   - Create binary indicators for different types of concerns (work environment,
+*     work-life balance, skill fit, career opportunities, personality fit, and 
+*     lack of knowledge about career)
+*   - Label variables appropriately
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 03.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -26,7 +30,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/6_ps_parents_cleaning_concerns.log", replace text
+log using "${dodir_log}/7_ps_parents_cleaning_concerns.log", replace text
 
 timer clear
 timer on 1

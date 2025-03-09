@@ -1,21 +1,21 @@
 ********************************************************************************
 * 4_ps_parents_clean_beliefs.do
- * --------------------------------------------------------------------------------------------
+* ------------------------------------------------------------------------------
 * Data needed: ps_par_cleaned.dta
 * Data output: ps_par_clean_beliefs.dta
 * Purpose:
-* - Load the cleaned PS Parents data (ps_par_cleaned.dta).
-* - Rename & reshape key belief–related variables (e.g. belief_fit, like_task,
-*   colleague_fit, employer_fit → belief_demand, marriage_prob_fit, future_fit, 
-*   approval_fit, etc.) into occupation–specific variables.
-* - Label the new variables.
-* - Create standardised averages for “GC” (gender–consistent) and “GIC”
-*   (gender–inconsistent) occupations. (Row–means multiplied by 2 to rescale 
-*   to the original Likert scale.)
-* - Save the updated dataset.
+*   - Load the cleaned PS Parents data (ps_par_cleaned.dta).
+*   - Rename & reshape key belief–related variables (e.g. belief_fit, like_task,
+*     colleague_fit, employer_fit → belief_demand, marriage_prob_fit, future_fit, 
+*     approval_fit, etc.) into occupation–specific variables.
+*   - Label the new variables.
+*   - Create standardised averages for "GC" (gender–consistent) and "GIC"
+*     (gender–inconsistent) occupations. (Row–means multiplied by 2 to rescale 
+*     to the original Likert scale.)
+*   - Save the updated dataset.
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Laste edit: 03.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

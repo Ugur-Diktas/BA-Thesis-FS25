@@ -1,18 +1,21 @@
 ********************************************************************************
 * 4_ps_students_clean_beliefs.do
-*
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_cleaned.dta
+* Data output: ps_stu_cleaned.dta
 * Purpose:
 *   - Load the cleaned PS Students dataset (ps_stu_cleaned.dta).
 *   - Rename and reshape the belief–related variables (e.g. marriage_prob, 
 *     belief_fit, mother/father approvals, etc.) into occupation–specific 
 *     variables.
 *   - Label the new variables.
-*   - Create standardized averages for “GC” (gender–consistent) and “GIC”
+*   - Create standardized averages for "GC" (gender–consistent) and "GIC"
 *     (gender–inconsistent) occupations. (Note: the row–means are multiplied 
 *     by 2 to rescale them back to the original Likert scale.)
 *   - Save the updated dataset.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

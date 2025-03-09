@@ -1,31 +1,23 @@
-/********************************************************************************
- * 8_ps_students_clean_parent_occs.do
- * --------------------------------------------------------------------------------
- * Purpose:
- *   This do‐file cleans parent occupation text entries (mother_occ and father_occ)
- *   in the PS Students dataset. The procedure is as follows:
- *     1. Assign preliminary ISCED codes to parent occupations via string matching.
- *     2. Export unique (uncleaned) occupation entries for manual review by writing
- *        them to an Excel file. In the Excel file you update the suggested ISCED‐F
- *        category (using the clean occupations.xlsx file located in the assets folder).
- *     3. Import the manually cleaned suggestions and merge them back into the dataset,
- *        thereby creating cleaned parent occupation variables.
- *     4. Finally, merge the cleaned parent occupation data back into the main 
- *        student dataset using ResponseId.
- *
- * Data Requirements:
- *   - Cleaned student dataset "ps_stu_chars_merged.dta" in:
- *         ${processed_data}/PS_Students
- *   - The asset folder for parent occupations: 
- *         ${parental_occupation_cleaning_new} (which contains "clean occupations.dta" and 
- *         "clean occupations.xlsx")
- *
- * Globals Needed:
- *   processed_data, dodir_log, parental_occupation_cleaning_new, debug
- *
- * Author  : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
- * Version : Stata 18
- ********************************************************************************/
+********************************************************************************
+* 9_ps_students_clean_parent_occs.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_chars_merged.dta
+* Data output: ps_stu_clean_parent_occs.dta
+* Purpose:
+*   - Cleans parent occupation text entries (mother_occ and father_occ) in the PS 
+*     Students dataset. The procedure is as follows:
+*     1. Assign preliminary ISCED codes to parent occupations via string matching.
+*     2. Export unique (uncleaned) occupation entries for manual review by writing
+*        them to an Excel file.
+*     3. Import the manually cleaned suggestions and merge them back into the dataset,
+*        thereby creating cleaned parent occupation variables.
+*     4. Finally, merge the cleaned parent occupation data back into the main 
+*        student dataset using ResponseId.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+********************************************************************************
 
 //----------------------------------------------------------------------------
 // 0. HOUSEKEEPING
@@ -43,7 +35,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/8_ps_students_clean_parent_occs.log", replace text
+log using "${dodir_log}/9_ps_students_clean_parent_occs.log", replace text
 
 timer clear
 timer on 1

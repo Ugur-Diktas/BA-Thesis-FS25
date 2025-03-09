@@ -1,30 +1,22 @@
-/**********************************************************************************************
- * 6_ps_students_clean_other.do
- * --------------------------------------------------------------------------------------------
- * Purpose:
- *   Cleans "other" occupation textboxes and related fields in the PS Students dataset.
- *   This includes basic cleaning (removing line breaks, trimming) and, if applicable, merging 
- *   with external standardized occupation references via the clean_apprenticeships.do file.
- *
- *   In this project the free‐text apprenticeship response is stored in the variable "plan"
- *   (located right after name_class). This do‐file:
- *     1. Loads the cleaned student data.
- *     2. Cleans the "plan" variable.
- *     3. Uses an external cleaning routine (clean_apprenticeships.do) to standardize the text.
- *     4. Exports a review table (showing ResponseId and plan) so you can check the free‐text 
- *        responses.
- *     5. Saves the updated dataset.
- *
- * Data Requirements:
- *   - The cleaned students file "ps_stu_cleaned.dta" must exist in 
- *       ${processed_data}/PS_Students.
- *
- * Globals Needed:
- *   - processed_data, dodir_log, dodir_cleaning, clean_apprenticeships, appchardir, debug
- *
- * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
- * Version: Stata 18
- **********************************************************************************************/
+********************************************************************************
+* 6_ps_students_clean_other.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_cleaned.dta
+* Data output: ps_stu_cleaned.dta
+* Purpose:
+*   - Cleans "other" occupation textboxes and related fields in the PS Students dataset.
+*   - This includes basic cleaning (removing line breaks, trimming) and, if applicable, merging 
+*     with external standardized occupation references via the clean_apprenticeships.do file.
+*   - In this project the free‐text apprenticeship response is stored in the variable "plan"
+*     (located right after name_class).
+*   - Exports a review table (showing ResponseId and plan) for manual checking of free‐text 
+*     responses.
+*   - Saves the updated dataset.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+********************************************************************************
 
 //----------------------------------------------------------------------------
 // 0. HOUSEKEEPING

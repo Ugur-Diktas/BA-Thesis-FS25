@@ -1,6 +1,8 @@
 ********************************************************************************
 * 3_ps_students_clean_relabeling.do
-*
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_cleaned.dta
+* Data output: ps_stu_cleaned.dta
 * Purpose:
 *   - Load the cleaned PS Students dataset (duplicates removed and test answers dropped).
 *   - Convert string variables (e.g., contract, female) to numeric and recode as needed.
@@ -10,7 +12,8 @@
 *     and occupational preferences.
 *   - Drop unneeded variables.
 *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

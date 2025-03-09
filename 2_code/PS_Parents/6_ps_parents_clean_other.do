@@ -1,21 +1,17 @@
-/**********************************************************************************************
- * 6_ps_parents_clean_other.do
- * --------------------------------------------------------------------------------------------
- * Purpose:
- *   Cleans “other” free‐text responses in the PS Parents dataset (e.g., apprenticeship free‐text).
- *   This includes basic cleaning (removing line breaks, trimming whitespace).
- *   The cleaned data is saved as an intermediate file for subsequent processing.
- *
- * Data Requirements:
- *   - The cleaned parents file (e.g., ps_par_clean_motivations.dta) must exist in 
- *       ${processed_data}/PS_Parents.
- *
- * Globals Needed:
- *   processed_data, dodir_log, debug
- *
- * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
- * Version: Stata 18
- **********************************************************************************************/
+********************************************************************************
+* 6_ps_parents_clean_other.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_par_clean_motivations.dta
+* Data output: temp_par_clean_other.dta
+* Purpose:
+*   - Cleans "other" free‐text responses in the PS Parents dataset (e.g., apprenticeship free‐text).
+*   - This includes basic cleaning (removing line breaks, trimming whitespace).
+*   - The cleaned data is saved as an intermediate file for subsequent processing.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+********************************************************************************
 
 //----------------------------------------------------------------------------
 // 0. HOUSEKEEPING

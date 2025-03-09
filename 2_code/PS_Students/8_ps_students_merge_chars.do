@@ -1,30 +1,23 @@
-/********************************************************************************
- * 7_ps_students_merge_chars.do
- * --------------------------------------------------------------------------------
- * Purpose:
- *   Merges student apprenticeship preference variables with the apprenticeship
- *   characteristics dataset. This characteristics dataset contains information 
- *   on skill intensity, female shares, math and language requirements, and ISCED2 
- *   classifications derived from the raw skill intensity data.
- *
- *   For each student preference variable (e.g., "prefchild_best_m", "prefchild_best_f", 
- *   "prefchild_m", "prefchild_f"), the corresponding "_code" variable is used as the 
- *   merge key. The merged characteristics (such as ISCED2 code, female share, math 
- *   and language requirements) are then renamed with a prefix corresponding to the 
- *   original preference variable.
- *
- * Data Requirements:
- *   - Apprenticeship characteristics file:
- *         ${data_to_merge}/skill_intensity_data_with_apprentice_characteristics.dta
- *   - Cleaned PS Students file:
- *         ${processed_data}/PS_Students/ps_stu_cleaned.dta
- *
- * Globals Needed:
- *   - data_to_merge, processed_data, dodir_log, debug
- *
- * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
- * Version: Stata 18
- ********************************************************************************/
+********************************************************************************
+* 8_ps_students_merge_chars.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_stu_clean_concerns.dta
+* Data output: ps_stu_chars_merged.dta
+* Purpose:
+*   - Merges student apprenticeship preference variables with the apprenticeship
+*     characteristics dataset. This characteristics dataset contains information 
+*     on skill intensity, female shares, math and language requirements, and ISCED2 
+*     classifications derived from the raw skill intensity data.
+*   - For each student preference variable (e.g., "prefchild_best_m", "prefchild_best_f", 
+*     "prefchild_m", "prefchild_f"), the corresponding "_code" variable is used as the 
+*     merge key. The merged characteristics (such as ISCED2 code, female share, math 
+*     and language requirements) are then renamed with a prefix corresponding to the 
+*     original preference variable.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+********************************************************************************
 
 //----------------------------------------------------------------------------
 // 0. HOUSEKEEPING
@@ -43,7 +36,7 @@ else {
 
 // Start logging
 cap log close
-log using "${dodir_log}/7_ps_students_merge_chars.log", replace text
+log using "${dodir_log}/8_ps_students_merge_chars.log", replace text
 
 timer clear
 timer on 1

@@ -1,18 +1,18 @@
 ********************************************************************************
 * 5_ps_parents_clean_motivations.do
-* --------------------------------------------------------------------------------------------
+* ------------------------------------------------------------------------------
 * Data needed: ps_par_clean_beliefs.dta
 * Data output: ps_par_clean_motivations.dta
 * Purpose:
-* - Process and transform parental motivation factors (analogous to the 
-*   students’ motivations processing).
-* - It handles both numeric variables (motFactor variables) and string 
-*   variables (motFactors_this and motFactors_other) by creating binary
-*   indicator variables (fac_1 to fac_13) for each motivational factor.
-* - Creates motivational factors per parent type 
+*   - Process and transform parental motivation factors (analogous to the 
+*     students' motivations processing).
+*   - It handles both numeric variables (motFactor variables) and string 
+*     variables (motFactors_this and motFactors_other) by creating binary
+*     indicator variables (fac_1 to fac_13) for each motivational factor.
+*   - Creates motivational factors per parent type 
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 03.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

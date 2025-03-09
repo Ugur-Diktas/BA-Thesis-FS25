@@ -1,6 +1,8 @@
 ********************************************************************************
 * 1_ps_students_anonymize.do
-* --------------------------------------------------------------------------------------------
+* ------------------------------------------------------------------------------
+* Data needed: raw_data files
+* Data output: ps_stu_all_anon.dta
 * Purpose: 
 *   - Import **all** PS Students .sav files (finished & unfinished) using a 
 *     wildcard approach (PoF_PS_Students*.sav).
@@ -10,7 +12,7 @@
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 3.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 

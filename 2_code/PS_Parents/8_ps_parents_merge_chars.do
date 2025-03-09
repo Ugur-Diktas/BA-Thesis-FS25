@@ -1,25 +1,19 @@
 ********************************************************************************
- * 7_ps_parents_merge_chars.do
- * --------------------------------------------------------------------------------
- * Purpose:
- * - Merge the PS Parents dataset with external apprenticeship/occupation
- *   characteristics (e.g. skill intensity, female share, math and language 
- *   requirements, and ISCED2 classifications).
- * - For each parental preference variable, use the corresponding "_code"
- *   variable as the merge key and rename the merged characteristics with a 
- *   prefix corresponding to the original variable.
- * - Save the updated dataset.
- *
- * Data Requirements:
- *   - Apprenticeship characteristics file:
- *         ${data_to_merge}/skill_intensity_data_with_apprentice_characteristics.dta
- *   - Cleaned PS Parents file:
- *         ${processed_data}/PS_Parents/temp_par_clean_parent_occs.dta
- *
- * Globals Needed:
- *   data_to_merge, processed_data, dodir_log, debug
- *
-* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25, 01.03.2025
+* 8_ps_parents_merge_chars.do
+* ------------------------------------------------------------------------------
+* Data needed: ps_par_clean_concerns.dta
+* Data output: ps_par_merge_chars.dta
+* Purpose:
+*   - Merge the PS Parents dataset with external apprenticeship/occupation
+*     characteristics (e.g. skill intensity, female share, math and language 
+*     requirements, and ISCED2 classifications).
+*   - For each parental preference variable, use the corresponding "_code"
+*     variable as the merge key and rename the merged characteristics with a 
+*     prefix corresponding to the original variable.
+*   - Save the updated dataset.
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
 * Version: Stata 18
 ********************************************************************************
 
@@ -38,7 +32,7 @@ else {
 }
 
 cap log close
-log using "${dodir_log}/7_ps_parents_merge_chars.log", replace text
+log using "${dodir_log}/8_ps_parents_merge_chars.log", replace text
 
 timer clear
 timer on 1
