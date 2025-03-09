@@ -15,6 +15,10 @@
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
 * Last edit: 09.03.2025
 * Version: Stata 18
+*
+* Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
+* This code is proprietary and may not be reproduced, distributed, or modified
+* without prior written consent.
 ********************************************************************************
 
 *---------------------------------------------------------------

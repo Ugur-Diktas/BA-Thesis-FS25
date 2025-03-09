@@ -1,12 +1,16 @@
 ********************************************************************************
-// 2_globals.do
-// Purpose: Sets global paths and parameters used in the do-files
-//
-// Author: Ugur Diktas, Jelke CLarysse, BA Thesis FS25, 04.03.2025
-// Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
-//
-// This code is proprietary and may not be reproduced, distributed, or modified
-// without prior written consent.
+* 2_globals.do
+* ------------------------------------------------------------------------------
+* Purpose:
+*   - Sets global paths and parameters used in the do-files
+*
+* Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
+* Last edit: 09.03.2025
+* Version: Stata 18
+*
+* Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
+* This code is proprietary and may not be reproduced, distributed, or modified
+* without prior written consent.
 ********************************************************************************
 
 global root "`c(pwd)'"
