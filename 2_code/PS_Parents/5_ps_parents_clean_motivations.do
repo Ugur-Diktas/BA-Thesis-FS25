@@ -52,7 +52,7 @@ if _N == 0 {
 *.      and factor_otehr is what they think about the other parent would think
 *.   b. we loop through all factors indicating what they are and if they have been selected
 ********************************************************************************
-forval i = 1/13 {
+forval i = 1/12 {
 	gen fac_this_`i' = .
 	gen fac_other_`i' = .
 }
@@ -74,25 +74,25 @@ foreach q in "this" "other" {
 		replace fac_`q'_5 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die <strong>sprachlichen</strong> Anforderungen"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_7 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die <strong>Geschlechterzusammensetzung</strong> im Beruf"
+		replace fac_`q'_6 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die <strong>Geschlechterzusammensetzung</strong> im Beruf"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_8 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Das Ausmass an <strong>sozialem Kontakt</strong>"
+		replace fac_`q'_7 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Das Ausmass an <strong>sozialem Kontakt</strong>"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_9 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Menschen zu <strong>helfen</strong> (z.B. Kunden oder Patienten)"
+		replace fac_`q'_8 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Menschen zu <strong>helfen</strong> (z.B. Kunden oder Patienten)"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_10 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Der <strong>Arbeitsort</strong> (z.B. Büro, Aussenbereich, Baustelle)"
+		replace fac_`q'_9 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Der <strong>Arbeitsort</strong> (z.B. Büro, Aussenbereich, Baustelle)"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_11 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die <strong>Chance</strong>, einen Lehrvertrag zu bekommen"
+		replace fac_`q'_10 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die <strong>Chance</strong>, einen Lehrvertrag zu bekommen"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_12 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die Aussicht auf <strong>Beförderungen</strong>"
+		replace fac_`q'_11 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Die Aussicht auf <strong>Beförderungen</strong>"
 	}
 	forval j = 1/12 {
-		replace fac_`q'_13 = 1 if motFactors_`q'_`j' == 1 & motFactor`j' == "Ihre persönlichen <strong>Interessen</strong>"
+		replace fac_`q'_12 = 1 if motFactors_`q'_`j' == 1 & trim(motFactor`j') == "Ihre persönlichen <strong>Interessen</strong>"
 	}
 }
 
@@ -101,20 +101,19 @@ local fac_2 "flexibility"
 local fac_3 "further education possibilities"
 local fac_4 "math requirements"
 local fac_5 "language requirements"
-local fac_6 "parents' recommendations"
-local fac_7 "gender composition"
-local fac_8 "social contact"
-local fac_9 "helping people"
-local fac_10 "type of workplace"
-local fac_11 "ability to obtain contract"
-local fac_12 "promotion prospects"
-local fac_13 "interests"
+local fac_6 "gender composition"
+local fac_7 "social contact"
+local fac_8 "helping people"
+local fac_9 "type of workplace"
+local fac_10 "ability to obtain contract"
+local fac_11 "promotion prospects"
+local fac_12 "interests"
 ********************************************************************************
 * 3.CREATING NEW VARIABLE THAT INDICATES MOTHER AND FATHER
 *.  a.if father or mother is indicated we generate a new variable for each factor 
 *.    to clearly indicate which parent answered the question 
 ********************************************************************************
-forval i = 1/13 {
+forval i = 1/12 {
 	gen mother_fac_`i' = .
 	replace mother_fac_`i' = fac_this_`i' if Parent_type_ == 1
 	replace mother_fac_`i' = fac_other_`i' if Parent_type_ == 2
@@ -129,21 +128,20 @@ forval i = 1/13 {
 *.   b.we drop the orginal factor variables as we have created new ones
 ********************************************************************************
 
-forval i = 1/13 {
+forval i = 1/12 {
     local fac_label ""
     if `i' == 1 local fac_label "Salary"
     if `i' == 2 local fac_label "Flexibility"
     if `i' == 3 local fac_label "Further education possibilities"
     if `i' == 4 local fac_label "Math requirements"
     if `i' == 5 local fac_label "Language requirements"
-    if `i' == 6 local fac_label "Parents' recommendations"
-    if `i' == 7 local fac_label "Gender composition"
-    if `i' == 8 local fac_label "Social contact"
-    if `i' == 9 local fac_label "Helping people"
-    if `i' == 10 local fac_label "Type of workplace"
-    if `i' == 11 local fac_label "Ability to obtain contract"
-    if `i' == 12 local fac_label "Promotion prospects"
-    if `i' == 13 local fac_label "Interests"
+    if `i' == 6 local fac_label "Gender composition"
+    if `i' == 7 local fac_label "Social contact"
+    if `i' == 8 local fac_label "Helping people"
+    if `i' == 9 local fac_label "Type of workplace"
+    if `i' == 10 local fac_label "Ability to obtain contract"
+    if `i' == 11 local fac_label "Promotion prospects"
+    if `i' == 12 local fac_label "Interests"
 
     label variable fac_this_`i' "`fac_label' (This)"
     label variable fac_other_`i' "`fac_label' (Other)"
