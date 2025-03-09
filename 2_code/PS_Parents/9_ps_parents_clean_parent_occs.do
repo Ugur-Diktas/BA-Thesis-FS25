@@ -1,24 +1,19 @@
 ********************************************************************************
 * 9_ps_parents_clean_parent_occs.do
 * ------------------------------------------------------------------------------
-* Data needed: ps_par_merge_chars.dta
-* Data output: temp_par_clean_parent_occs.dta
+* Data needed: 8_ps_parents.dta
+* Data output: 9_ps_parents.dta
 * Purpose:
-*   - Cleans parent occupation text entries in the PS Parents dataset.
-*   - Assign preliminary ISCED codes to parent occupations via string matching.
-*   - Export unique (uncleaned) occupation entries for manual review by writing
-*     them to an Excel file.
-*   - Import the manually cleaned suggestions and merge them back into the dataset,
-*     thereby creating cleaned parent occupation variables.
-*   - Save the updated dataset.
+*   - Creates standardized parent occupation variables
+*   - Handles the mapping to ISCED codes with minimal processing
+*   - Handles the specific structure of parent datasets where occupations
+*     may be stored in different variables based on parent type
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 09.03.2025
+* Last edit: 12.03.2025
 * Version: Stata 18
 *
 * Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
-* This code is proprietary and may not be reproduced, distributed, or modified
-* without prior written consent.
 ********************************************************************************
 
 //----------------------------------------------------------------------------
@@ -42,220 +37,358 @@ timer clear
 timer on 1
 
 //----------------------------------------------------------------------------
-// 1) ASSIGN PRELIMINARY ISCED CODES TO PARENT OCCUPATIONS
-//    (Based on raw text in mother_occ and father_occ)
+// 1. LOAD AND PREPARE DATASET
 //----------------------------------------------------------------------------
-di as txt "----- Step 1: Assign preliminary ISCED codes to parent occupations -----"
+di as txt "----- Loading dataset: 8_ps_parents.dta -----"
 use "${processed_data}/PS_Parents/8_ps_parents.dta", clear
 
-/* HOW CAN WE IMPLEMENT THIS FILE?
+// Initialize final variables
+capture confirm variable mother_occ_isced6_final
+if _rc {
+    gen mother_occ_isced6_final = ""
+    label var mother_occ_isced6_final "Mother's occupation field (cleaned)"
+}
 
-foreach x in mother father {
-    gen `x'_occ_isced6 = ""
-    replace `x'_occ_isced6 = "Gesundheit, Pflege, Betreuung und Ausbildung" ///
-         if `x'_occ == "Gesundheit, Pflege, Betreuung und Ausbildung (z.B. Lehrer/-in, Pflegefachmann/-frau, Kinderbetreuer/-in, Arzt/Ärztin)"
-    replace `x'_occ_isced6 = "Dienstleistungen und Detailhandel" ///
-         if `x'_occ == "Dienstleistungen und Detailhandel (z.B. Gastronomie, Reinigung, Hotellerie, Vertrieb)"
-    replace `x'_occ_isced6 = "Wirtschaft, Verwaltung und Recht" ///
-         if `x'_occ == "Wirtschaft, Verwaltung und Recht (z.B. KV, Bank, Logistik)"
-    replace `x'_occ_isced6 = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" ///
-         if `x'_occ == "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften"
-    replace `x'_occ_isced6 = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" ///
-         if `x'_occ == "Sozialwisschenschaften, Journalismus und Geisteswissenschaften" | ///
-            `x'_occ == "Sozialwissenschaften, Journalismus und Geisteswissenschaften"
-    replace `x'_occ_isced6 = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
-         if `x'_occ == "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin"
-    
-    // If an alternative textbox exists (e.g., mother_occ_text or father_occ_text), use it when the main variable is missing.
-    capture confirm variable `x'_occ_text
+capture confirm variable father_occ_isced6_final
+if _rc {
+    gen father_occ_isced6_final = ""
+    label var father_occ_isced6_final "Father's occupation field (cleaned)"
+}
+
+// Initialize numeric ISCED fields
+capture confirm variable mother_isced_num
+if _rc {
+    gen mother_isced_num = .
+    label var mother_isced_num "ISCED field code for mother"
+}
+
+capture confirm variable father_isced_num
+if _rc {
+    gen father_isced_num = .
+    label var father_isced_num "ISCED field code for father"
+}
+
+//----------------------------------------------------------------------------
+// 2. DETECT AND STANDARDIZE PARENT OCCUPATION VARIABLES
+//----------------------------------------------------------------------------
+di as txt "----- Detecting parent occupation variables -----"
+
+// In parent dataset, occupation might be stored in different ways:
+// 1. As mother_occ/father_occ directly
+// 2. As own_occupation/partner_occupation depending on Parent_type_
+// 3. As some other variable naming convention
+
+// Check if we have direct mother/father variables
+local has_mother_occ = 0
+local has_father_occ = 0
+
+// Check for common mothers' occupation variables
+foreach var in mother_occ motherocc mother_occupation motheroccupation mom_occ momocc {
+    capture confirm variable `var'
     if !_rc {
-        replace `x'_occ = `x'_occ_text if missing(`x'_occ)
+        di as txt "Found mother occupation variable: `var'"
+        local mother_var "`var'"
+        local has_mother_occ = 1
+        continue, break
     }
 }
 
-// Save a copy of the dataset without parent occupation variables for later merging.
-preserve
-drop mother_occ father_occ
-tempfile data_no_parent_occ
-save `data_no_parent_occ'
-restore
-
-// Keep only the raw parent occupation texts and ResponseId.
-keep mother_occ father_occ ResponseId
-keep if !missing(mother_occ) | !missing(father_occ)
-
-// Standardise text by converting to lowercase.
-replace mother_occ = lower(mother_occ)
-replace father_occ = lower(father_occ)
-
-// Preliminary ISCED coding using string matching (adjust rules as needed).
-foreach p in mother_occ father_occ {
-    gen isced`p' = .
-    replace isced`p' = 0611 if strpos(`p', "it")
-    replace isced`p' = 1013 if strpos(`p', "wirtin")
-    replace isced`p' = 0200 if strpos(`p', "händler")
-    replace isced`p' = -14 if strpos(`p', "hausfrau") | strpos(`p', "haushalt") | strpos(`p', "familie")
-    replace isced`p' = -2 if strpos(`p', "arbeitet nicht") | strpos(`p', "arbeitslos")
-    replace isced`p' = 0410 if strpos(`p', "management")
-    replace isced`p' = 0914 if strpos(`p', "arzt") | strpos(`p', "chirurg")
-    // ... add additional rules as needed
-
-    // Map raw ISCED codes to a simplified ISCED-F field grouping.
-    gen isced_field`p' = .
-    replace isced_field`p' = 1 if isced`p' == 0111
-    replace isced_field`p' = 2 if inlist(isced`p', 0212, 0214, 0215, 211)
-    replace isced_field`p' = 3 if isced`p' == 0322
-    replace isced_field`p' = 4 if inlist(isced`p', 0410, 0413, 0415, 0416, 0421)
-    replace isced_field`p' = 5 if isced`p' == 51
-    replace isced_field`p' = 6 if inlist(isced`p', 0611, 0613)
-    replace isced_field`p' = 7 if inrange(isced_field`p', 5, 7)
-    replace isced_field`p' = 8 if inlist(isced`p', 0811, 0841)
-    replace isced_field`p' = 9 if inlist(isced`p', 0911, 0913, 0914, 0923)
-    replace isced_field`p' = 10 if inlist(isced`p', 1011, 1013, 1014, 1041, 0200)
-    
-    gen isced6`p' = ""
-    replace isced6`p' = "Gesundheit, Pflege, Betreuung und Ausbildung" if inlist(isced_field`p', 1, 9)
-    replace isced6`p' = "Dienstleistungen und Detailhandel" if isced_field`p' == 10
-    replace isced6`p' = "Wirtschaft, Verwaltung und Recht" if isced_field`p' == 4
-    replace isced6`p' = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" if inrange(isced_field`p', 5, 7)
-    replace isced6`p' = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" if inlist(isced_field`p', 3, 2)
-    replace isced6`p' = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" if isced_field`p' == 8
-    replace isced6`p' = "" if isced`p' == -14
-    
-    drop isced_field`p' isced`p'
+// Check for common fathers' occupation variables
+foreach var in father_occ fatherocc father_occupation fatheroccupation dad_occ dadocc {
+    capture confirm variable `var'
+    if !_rc {
+        di as txt "Found father occupation variable: `var'"
+        local father_var "`var'"
+        local has_father_occ = 1
+        continue, break
+    }
 }
 
-*---------------------------------------------------------------
-* 2) EXPORT UNCLEANED OCCUPATION ENTRIES FOR MANUAL REVIEW
-*---------------------------------------------------------------
-di as txt "----- Exporting uncleaned parent occupation entries for manual review -----"
-
-preserve
-    * Keep ResponseId along with raw occupation variables and preliminary ISCED coding
-    keep ResponseId mother_occ father_occ isced6mother_occ isced6father_occ
-    keep if (!missing(mother_occ) & trim(mother_occ) != "") | ///
-            (!missing(father_occ) & trim(father_occ) != "")
+// Check for the parent type + own/partner occupation structure
+capture confirm variable Parent_type_
+if !_rc {
+    di as txt "Found Parent_type_ variable - checking for own/partner occupations"
     
-    * Save a temporary copy for reloading in subsequent processing
-    tempfile original_occ
-    save `original_occ', replace
+    local own_occ_var ""
+    local partner_occ_var ""
+    
+    // Check for own occupation variables
+    foreach var in own_occupation ownoccupation own_occ ownocc occupation {
+        capture confirm variable `var'
+        if !_rc {
+            di as txt "Found own occupation variable: `var'"
+            local own_occ_var "`var'"
+            continue, break
+        }
+    }
+    
+    // Check for partner occupation variables
+    foreach var in partner_occupation partneroccupation partner_occ partnerocc {
+        capture confirm variable `var'
+        if !_rc {
+            di as txt "Found partner occupation variable: `var'"
+            local partner_occ_var "`var'"
+            continue, break
+        }
+    }
+    
+    // If we found both own and partner occupation variables, create standardized ones
+    if "`own_occ_var'" != "" & "`partner_occ_var'" != "" {
+        // If parent type = 1 (mother), own = mother, partner = father
+        // If parent type = 2 (father), own = father, partner = mother
+        
+        // Create temporary mother/father occupation variables
+        gen temp_mother_occ = ""
+        gen temp_father_occ = ""
+        
+        // Fill based on parent type
+        replace temp_mother_occ = `own_occ_var' if Parent_type_ == 1
+        replace temp_mother_occ = `partner_occ_var' if Parent_type_ == 2
+        
+        replace temp_father_occ = `partner_occ_var' if Parent_type_ == 1
+        replace temp_father_occ = `own_occ_var' if Parent_type_ == 2
+        
+        // Use these as our occupation variables
+        local mother_var "temp_mother_occ"
+        local father_var "temp_father_occ"
+        
+        local has_mother_occ = 1
+        local has_father_occ = 1
+        
+        di as txt "Created standardized mother/father occupation variables based on Parent_type_"
+    }
+}
 
-    * Process mother_occ:
-    use `original_occ', clear
-    keep ResponseId mother_occ isced6mother_occ
-    rename mother_occ occupation
-    rename isced6mother_occ isced6_try
-    bys occupation: keep if _n == 1
-    drop if missing(occupation)
-    count
-    if _N > 0 {
-         export excel using "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
-              firstrow(variables) replace
+//----------------------------------------------------------------------------
+// 3. DIRECT ISCED CODE ASSIGNMENT
+//----------------------------------------------------------------------------
+di as txt "----- Assigning ISCED codes directly -----"
+
+// Process mother occupations if available
+if `has_mother_occ' {
+    di as txt "Processing mother occupations from variable: `mother_var'"
+    
+    // Assign ISCED codes based on standard categories
+    replace mother_occ_isced6_final = "Gesundheit, Pflege, Betreuung und Ausbildung" ///
+         if `mother_var' == "Gesundheit, Pflege, Betreuung und Ausbildung (z.B. Lehrer/-in, Pflegefachmann/-frau, Kinderbetreuer/-in, Arzt/Ärztin)" & missing(mother_occ_isced6_final)
+    
+    replace mother_occ_isced6_final = "Dienstleistungen und Detailhandel" ///
+         if `mother_var' == "Dienstleistungen und Detailhandel (z.B. Gastronomie, Reinigung, Hotellerie, Vertrieb)" & missing(mother_occ_isced6_final)
+    
+    replace mother_occ_isced6_final = "Wirtschaft, Verwaltung und Recht" ///
+         if `mother_var' == "Wirtschaft, Verwaltung und Recht (z.B. KV, Bank, Logistik)" & missing(mother_occ_isced6_final)
+    
+    replace mother_occ_isced6_final = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" ///
+         if `mother_var' == "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" & missing(mother_occ_isced6_final)
+    
+    replace mother_occ_isced6_final = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" ///
+         if (`mother_var' == "Sozialwisschenschaften, Journalismus und Geisteswissenschaften" | ///
+            `mother_var' == "Sozialwissenschaften, Journalismus und Geisteswissenschaften") & missing(mother_occ_isced6_final)
+    
+    replace mother_occ_isced6_final = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
+         if `mother_var' == "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" & missing(mother_occ_isced6_final)
+    
+    // Common special cases
+    replace mother_occ_isced6_final = "Hausfrau/mann" if inlist(lower(`mother_var'), "hausfrau", "hausmann", "hausfrau/mann") & missing(mother_occ_isced6_final)
+    
+    // Count how many were directly mapped
+    count if !missing(mother_occ_isced6_final) & !missing(`mother_var')
+    local n_mapped = r(N)
+    count if missing(mother_occ_isced6_final) & !missing(`mother_var')
+    local n_unmapped = r(N)
+    
+    di as txt "Direct mapping for mother occupations: `n_mapped' mapped, `n_unmapped' unmapped"
+}
+else {
+    di as txt "No mother occupation variable found."
+}
+
+// Process father occupations if available
+if `has_father_occ' {
+    di as txt "Processing father occupations from variable: `father_var'"
+    
+    // Assign ISCED codes based on standard categories
+    replace father_occ_isced6_final = "Gesundheit, Pflege, Betreuung und Ausbildung" ///
+         if `father_var' == "Gesundheit, Pflege, Betreuung und Ausbildung (z.B. Lehrer/-in, Pflegefachmann/-frau, Kinderbetreuer/-in, Arzt/Ärztin)" & missing(father_occ_isced6_final)
+    
+    replace father_occ_isced6_final = "Dienstleistungen und Detailhandel" ///
+         if `father_var' == "Dienstleistungen und Detailhandel (z.B. Gastronomie, Reinigung, Hotellerie, Vertrieb)" & missing(father_occ_isced6_final)
+    
+    replace father_occ_isced6_final = "Wirtschaft, Verwaltung und Recht" ///
+         if `father_var' == "Wirtschaft, Verwaltung und Recht (z.B. KV, Bank, Logistik)" & missing(father_occ_isced6_final)
+    
+    replace father_occ_isced6_final = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" ///
+         if `father_var' == "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" & missing(father_occ_isced6_final)
+    
+    replace father_occ_isced6_final = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" ///
+         if (`father_var' == "Sozialwisschenschaften, Journalismus und Geisteswissenschaften" | ///
+            `father_var' == "Sozialwissenschaften, Journalismus und Geisteswissenschaften") & missing(father_occ_isced6_final)
+    
+    replace father_occ_isced6_final = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
+         if `father_var' == "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" & missing(father_occ_isced6_final)
+    
+    // Common special cases
+    replace father_occ_isced6_final = "Hausfrau/mann" if inlist(lower(`father_var'), "hausfrau", "hausmann", "hausfrau/mann") & missing(father_occ_isced6_final)
+    
+    // Count how many were directly mapped
+    count if !missing(father_occ_isced6_final) & !missing(`father_var')
+    local n_mapped = r(N)
+    count if missing(father_occ_isced6_final) & !missing(`father_var')
+    local n_unmapped = r(N)
+    
+    di as txt "Direct mapping for father occupations: `n_mapped' mapped, `n_unmapped' unmapped"
+}
+else {
+    di as txt "No father occupation variable found."
+}
+
+//----------------------------------------------------------------------------
+// 4. CREATE NUMERIC ISCED FIELDS
+//----------------------------------------------------------------------------
+di as txt "----- Creating numeric ISCED fields -----"
+
+// Create numeric ISCED fields
+foreach parent in mother father {
+    replace `parent'_isced_num = 1 if `parent'_occ_isced6_final == "Gesundheit, Pflege, Betreuung und Ausbildung"
+    replace `parent'_isced_num = 2 if `parent'_occ_isced6_final == "Dienstleistungen und Detailhandel"
+    replace `parent'_isced_num = 3 if `parent'_occ_isced6_final == "Wirtschaft, Verwaltung und Recht"
+    replace `parent'_isced_num = 4 if `parent'_occ_isced6_final == "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften"
+    replace `parent'_isced_num = 5 if `parent'_occ_isced6_final == "Sozialwissenschaften, Journalismus und Geisteswissenschaften"
+    replace `parent'_isced_num = 6 if `parent'_occ_isced6_final == "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin"
+    replace `parent'_isced_num = -14 if `parent'_occ_isced6_final == "Hausfrau/mann"
+    replace `parent'_isced_num = -2 if `parent'_occ_isced6_final == "None"
+    replace `parent'_isced_num = -8 if `parent'_occ_isced6_final == "Doesn't know"
+}
+
+// Define value labels for ISCED fields
+label define isced_field_lbl ///
+    1 "Gesundheit, Pflege, Betreuung und Ausbildung" ///
+    2 "Dienstleistungen und Detailhandel" ///
+    3 "Wirtschaft, Verwaltung und Recht" ///
+    4 "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" ///
+    5 "Sozialwissenschaften, Journalismus und Geisteswissenschaften" ///
+    6 "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
+    -14 "Hausfrau/mann" ///
+    -2 "None" ///
+    -8 "Doesn't know"
+
+label values mother_isced_num father_isced_num isced_field_lbl
+
+//----------------------------------------------------------------------------
+// 5. EXPORT UNMAPPED OCCUPATIONS FOR REFERENCE
+//----------------------------------------------------------------------------
+di as txt "----- Exporting unmapped occupations for reference -----"
+
+// Simplified approach to export unmapped occupations
+// Store mother and father variable names for later use
+local mother_var_name = "`mother_var'"
+local father_var_name = "`father_var'"
+
+if `has_mother_occ' | `has_father_occ' {
+    // Count unmapped occupations
+    local unmapped_count = 0
+    
+    if `has_mother_occ' {
+        count if !missing(`mother_var_name') & missing(mother_occ_isced6_final)
+        local unmapped_count = `unmapped_count' + r(N)
+    }
+    
+    if `has_father_occ' {
+        count if !missing(`father_var_name') & missing(father_occ_isced6_final)
+        local unmapped_count = `unmapped_count' + r(N)
+    }
+    
+    // If we have unmapped occupations, export them
+    if `unmapped_count' > 0 {
+        di as txt "Found `unmapped_count' unmapped occupations to export"
+        
+        preserve
+            clear
+            set obs `unmapped_count'
+            gen ResponseId = ""
+            gen parent_type = .
+            gen occupation = ""
+            gen occ_type = ""
+            
+            // Save empty dataset
+            save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace emptyok
+        restore
+        
+        // Add unmapped mother occupations
+        if `has_mother_occ' {
+            preserve
+                keep if !missing(`mother_var_name') & missing(mother_occ_isced6_final)
+                if _N > 0 {
+                    keep ResponseId Parent_type_ `mother_var_name'
+                    gen occ_type = "mother"
+                    rename `mother_var_name' occupation
+                    
+                    // Save to temporary file then append to main export
+                    tempfile mother_unmapped
+                    save `mother_unmapped'
+                    
+                    use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
+                    append using `mother_unmapped'
+                    save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace
+                }
+            restore
+        }
+        
+        // Add unmapped father occupations
+        if `has_father_occ' {
+            preserve
+                keep if !missing(`father_var_name') & missing(father_occ_isced6_final)
+                if _N > 0 {
+                    keep ResponseId Parent_type_ `father_var_name'
+                    gen occ_type = "father"
+                    rename `father_var_name' occupation
+                    
+                    // Save to temporary file then append to main export
+                    tempfile father_unmapped
+                    save `father_unmapped'
+                    
+                    use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
+                    append using `father_unmapped'
+                    save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace
+                }
+            restore
+        }
+        
+        // Export the final unmapped list to Excel
+        preserve
+            use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
+            
+            if _N > 0 {
+                // Export to Excel
+                capture export excel ResponseId parent_type occ_type occupation using "${processed_data}/PS_Parents/unmapped_occupations.xlsx", ///
+                    firstrow(variables) replace
+                
+                if !_rc {
+                    di as txt "Exported unmapped occupations to ${processed_data}/PS_Parents/unmapped_occupations.xlsx"
+                }
+                else {
+                    di as error "Warning: Could not export to Excel. Error code: `_rc'"
+                }
+            }
+        restore
     }
     else {
-         di as txt "No mother occupation entries found for export."
+        di as txt "No unmapped occupations to export."
     }
-
-    * Process father_occ:
-    use `original_occ', clear
-    keep ResponseId father_occ isced6father_occ
-    rename father_occ occupation
-    rename isced6father_occ isced6_try
-    bys occupation: keep if _n == 1
-    drop if missing(occupation)
-    count
-    if _N > 0 {
-         export excel using "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
-              firstrow(variables) replace
-    }
-    else {
-         di as txt "No father occupation entries found for export."
-    }
-restore
-
-*---------------------------------------------------------------
-* 3) IMPORT MANUALLY CLEANED SUGGESTIONS & MERGE BACK
-*---------------------------------------------------------------
-di as txt "----- Importing manually cleaned occupation suggestions for parents -----"
-
-* Import cleaned suggestions for mothers from Sheet2 of the mother's Excel file
-import excel "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
-         sheet("Sheet2") firstrow allstring clear
-drop if missing(occupation)
-drop if missing(checked)
-drop checked
-forval i = 1/4 {
-    gen isced6_`i' = ""
-    replace isced6_`i' = "Gesundheit, Pflege, Betreuung und Ausbildung" if suggestion_`i' == "1"
-    replace isced6_`i' = "Dienstleistungen und Detailhandel" if suggestion_`i' == "2"
-    replace isced6_`i' = "Wirtschaft, Verwaltung und Recht" if suggestion_`i' == "3"
-    replace isced6_`i' = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" if suggestion_`i' == "4"
-    replace isced6_`i' = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" if suggestion_`i' == "5"
-    replace isced6_`i' = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" if suggestion_`i' == "6"
-    replace isced6_`i' = "" if inlist(suggestion_`i', "not clear", "-8", "-2", "-14")
 }
-order occupation isced6*
-tempfile clean_mother
-save `clean_mother', replace
 
-* Import cleaned suggestions for fathers from Sheet2 of the father's Excel file
-import excel "${parental_occupation_cleaning_new}/clean occupations.xlsx", ///
-         sheet("Sheet2") firstrow allstring clear
-drop if missing(occupation)
-drop if missing(checked)
-drop checked
-forval i = 1/4 {
-    gen isced6_`i' = ""
-    replace isced6_`i' = "Gesundheit, Pflege, Betreuung und Ausbildung" if suggestion_`i' == "1"
-    replace isced6_`i' = "Dienstleistungen und Detailhandel" if suggestion_`i' == "2"
-    replace isced6_`i' = "Wirtschaft, Verwaltung und Recht" if suggestion_`i' == "3"
-    replace isced6_`i' = "Bauwesen, Informatik, Ingenieurwesen, Produktion, Naturwissenschaften" if suggestion_`i' == "4"
-    replace isced6_`i' = "Sozialwissenschaften, Journalismus und Geisteswissenschaften" if suggestion_`i' == "5"
-    replace isced6_`i' = "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" if suggestion_`i' == "6"
-    replace isced6_`i' = "" if inlist(suggestion_`i', "not clear", "-8", "-2", "-14")
-}
-order occupation isced6*
-tempfile clean_father
-save `clean_father', replace
+//----------------------------------------------------------------------------
+// 6. SAVE FINAL DATASET
+//----------------------------------------------------------------------------
+di as txt "----- Saving final dataset -----"
 
-* Now, merge the cleaned suggestions back into the original dataset.
-* First, reload the preserved dataset (the one without the raw occupation fields).
-use "${processed_data}/PS_Students/ps_stu_chars_merged.dta", clear
-tempfile data_no_parent_occ
-preserve
-    drop mother_occ father_occ  // drop raw parent occ fields
-    save `data_no_parent_occ', replace
-restore
+// Final verification
+count if !missing(mother_occ_isced6_final)
+di as txt "Mother occupations with ISCED codes: `r(N)'"
+count if !missing(father_occ_isced6_final)
+di as txt "Father occupations with ISCED codes: `r(N)'"
 
-* Merge mother's cleaned occupations back into the main dataset.
-preserve
-    keep ResponseId mother_occ
-    merge 1:1 ResponseId using `data_no_parent_occ', nogen
-    merge m:1 mother_occ using `clean_mother', nogen
-    rename isced6_1 mother_occ_isced6_final
-    drop isced6_*
-    tempfile merged_mother
-    save `merged_mother', replace
-restore
-
-* Merge father's cleaned occupations back into the main dataset.
-preserve
-    keep ResponseId father_occ
-    merge 1:1 ResponseId using `data_no_parent_occ', nogen
-    merge m:1 father_occ using `clean_father', nogen
-    rename isced6_1 father_occ_isced6_final
-    drop isced6_*
-    tempfile merged_father
-    save `merged_father', replace
-restore
-
-* Finally, merge the merged mother's and father's occupation data back with the main dataset.
-use `data_no_parent_occ', clear
-merge 1:1 ResponseId using `merged_mother', nogen
-merge 1:1 ResponseId using `merged_father', nogen
-
-*/
-
+// Save final dataset
 compress
 save "${processed_data}/PS_Parents/9_ps_parents.dta", replace
 

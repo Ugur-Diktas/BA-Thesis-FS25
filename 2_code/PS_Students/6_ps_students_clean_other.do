@@ -1,17 +1,14 @@
 ********************************************************************************
 * 6_ps_students_clean_other.do
 * ------------------------------------------------------------------------------
-* Data needed: ps_stu_cleaned.dta
-* Data output: ps_stu_cleaned.dta
+* Data needed: 5_ps_students.dta
+* Data output: 6_ps_students.dta
 * Purpose:
-*   - Cleans "other" occupation textboxes and related fields in the PS Students dataset.
-*   - This includes basic cleaning (removing line breaks, trimming) and, if applicable, merging 
-*     with external standardized occupation references via the clean_apprenticeships.do file.
-*   - In this project the free‐text apprenticeship response is stored in the variable "plan"
-*     (located right after name_class).
-*   - Exports a review table (showing ResponseId and plan) for manual checking of free‐text 
-*     responses.
-*   - Saves the updated dataset.
+*   - Cleans "other" occupation textboxes and standardizes them using the 
+*     clean_apprenticeships.do mapping system.
+*   - Performs basic cleaning (removes line breaks, standardizes formatting) 
+*   - Exports a review table of unmatched apprenticeship entries for manual review
+*   - Updates the crosswalk dataset to include new apprenticeship entries
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
 * Last edit: 09.03.2025
@@ -45,81 +42,108 @@ timer clear
 timer on 1
 
 //----------------------------------------------------------------------------
-// 1. LOAD THE CLEANED DATA
+// 1. LOAD DATA & VALIDATE PLAN VARIABLE
 //----------------------------------------------------------------------------
-di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
-use "${processed_data}/PS_Students/5_ps_students.dta", clear
-di as txt "Observations: `c(N)'"
-di as txt "Variables:    `c(k)'"
-if _N == 0 {
-    di as error "ERROR: No observations found in ps_stu_cleaned.dta."
-    error 603
+di as txt "----- Loading dataset: 5_ps_students.dta -----"
+quietly use "${processed_data}/PS_Students/5_ps_students.dta", clear
+di as txt "Processing dataset with `c(N)' observations"
+
+// Check that plan variable exists
+capture confirm variable plan
+if _rc {
+    di as error "ERROR: Variable 'plan' not found. Cannot process apprenticeships."
+    error 111
 }
 
 //----------------------------------------------------------------------------
-// 2. CLEAN THE APPOINTMENT TEXT (plan)
+// 2. BASIC TEXT CLEANING
 //----------------------------------------------------------------------------
-di as txt "----- Cleaning the apprenticeship free‐text variable: plan -----"
-capture confirm variable plan
-if !_rc {
-    // Get the variable type
-    local t : type plan
-    if substr("`t'", 1, 3) == "str" {
-        // Remove line breaks and extra spaces if plan is a string
-        replace plan = subinstr(plan, char(10), "", .)
-        replace plan = strtrim(plan)
-        replace plan = stritrim(plan)
-    }
-    else {
-        di as error "ERROR: Variable 'plan' is not a string (type: `t'). Cleaning skipped."
-    }
+di as txt "----- Cleaning apprenticeship text data -----"
+
+// Get the variable type
+local t : type plan
+if substr("`t'", 1, 3) == "str" {
+    // Basic text cleaning: remove line breaks, extra spaces, standardize case
+    replace plan = subinstr(plan, char(10), " ", .)  // Remove line breaks
+    replace plan = strtrim(plan)                    // Remove leading/trailing spaces
+    replace plan = stritrim(plan)                   // Replace multiple spaces with one
+    
+    // Optional: convert first character to uppercase for consistency
+    gen __first = substr(plan, 1, 1)
+    gen __rest = substr(plan, 2, .)
+    replace __first = upper(__first)
+    replace plan = __first + __rest if !missing(plan)
+    drop __first __rest
 }
 else {
-    di as error "ERROR: Variable 'plan' not found."
-    exit 198
+    di as error "WARNING: Variable 'plan' is not a string (type: `t'). Converting to string."
+    tostring plan, replace force
 }
 
 //----------------------------------------------------------------------------
-// 3. MERGE 'OTHER' FIELDS WITH EXTERNAL OCCUPATION REFERENCES
+// 3. INTEGRATE WITH CLEAN_APPRENTICESHIPS SYSTEM
 //----------------------------------------------------------------------------
-di as txt "Standardizing plan via clean_apprenticeships.do ..."
+di as txt "----- Processing apprenticeships with clean_apprenticeships.do -----"
 
-// Convert Apprenticeship to string BEFORE merging
-capture confirm string variable plan
-if _rc {
-    tostring plan, replace force  // Ensure plan is string before renaming
-}
-rename plan Apprenticeship        // Now Apprenticeship inherits string type
+// Prepare for clean_apprenticeships.do
+rename plan Apprenticeship
 
-tempfile keep_original
-save `keep_original'
-keep Apprenticeship
-do "${clean_apprenticeships}/clean apprenticeships.do"
-use `keep_original', clear
-merge m:1 Apprenticeship using "${clean_apprenticeships}/clean apprenticeships", ///
-    nogen keep(master match) keepusing(labb_code_1 app_official_1)
+// Save current data before processing
+tempfile before_cleaning
+save `before_cleaning'
+
+// Execute the apprenticeship cleaning process
+qui do "${clean_apprenticeships}/clean apprenticeships.do"
+
+// Merge cleaned apprenticeship data back to main dataset
+use `before_cleaning', clear
+merge m:1 Apprenticeship using "${clean_apprenticeships}/clean apprenticeships.dta", ///
+    keepusing(labb_code_* app_official_*) nogen
+
+// Rename back to original variable 
 rename Apprenticeship plan
-rename labb_code_1   plan_code
+rename labb_code_1 plan_code
 rename app_official_1 plan_cleaned
 
 //----------------------------------------------------------------------------
-// 4. OUTPUT A REVIEW TABLE OF "OTHER" RESPONSES
-//    (This table shows ResponseId and the current value of plan for manual review.)
+// 4. EXPORT REVIEW TABLE
 //----------------------------------------------------------------------------
-di as txt "----- Creating review table for 'other' responses -----"
+di as txt "----- Creating review table of apprenticeship responses -----"
 preserve
-    keep ResponseId plan
-    keep if !missing(plan) & trim(plan)!=""
-    order ResponseId plan
-    list ResponseId plan, sep(0)
-    export excel using "${processed_data}/PS_Students/others_responses.xlsx", ///
+    keep ResponseId plan plan_code plan_cleaned
+    keep if !missing(plan) & trim(plan) != ""
+    order ResponseId plan plan_code plan_cleaned
+    
+    // Export for review
+    export excel using "${processed_data}/PS_Students/apprenticeship_review.xlsx", ///
         firstrow(variables) replace
+        
+    // Count unmatched entries for reporting
+    count if missing(plan_code)
+    local unmatched = r(N)
+    
+    if `unmatched' > 0 {
+        di as txt "IMPORTANT: `unmatched' apprenticeship entries need manual review"
+        di as txt "Please check ${processed_data}/PS_Students/apprenticeship_review.xlsx"
+        di as txt "and update Sheet2 in ${clean_apprenticeships}/clean apprenticeships.xlsx"
+    }
+    else {
+        di as txt "✓ All apprenticeship entries have been successfully matched"
+    }
 restore
 
 //----------------------------------------------------------------------------
-// 5. SAVE & WRAP UP
+// 5. FINALIZATION & SAVING
 //----------------------------------------------------------------------------
-di as txt "----- Compressing and saving the updated dataset -----"
+// Label the new variables
+label var plan_code "LABB code for plan"
+label var plan_cleaned "Standardized apprenticeship name"
+
+// Add variable indicating whether the apprenticeship was successfully matched
+gen byte plan_matched = !missing(plan_code)
+label var plan_matched "Apprenticeship successfully matched to LABB code"
+
+di as txt "----- Compressing and saving dataset -----"
 compress
 save "${processed_data}/PS_Students/6_ps_students.dta", replace
 
