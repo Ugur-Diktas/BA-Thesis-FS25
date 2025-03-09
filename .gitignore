@@ -3,12 +3,6 @@
 0_Previous_Projects/*
 1_data/raw/*
 1_data/processed/*
-1_data/backup/*
-1_data/to_merge/*
 1_data/sensitive/*
 3_logfiles/*
-5_tests/nul
-5_tests/__pycache__/*
-
-1_master.log
-.pytest_cache/*
+5_tests/__pycache__

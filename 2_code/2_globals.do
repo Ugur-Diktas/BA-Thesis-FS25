@@ -18,8 +18,6 @@ global root "`c(pwd)'"
 // Subfolders
 global raw_data        "${root}/1_data/raw"
 global processed_data  "${root}/1_data/processed"
-global backup          "${root}/1_data/backup"
-global data_to_merge   "${root}/1_data/to_merge"
 global sensitive_data  "${root}/1_data/sensitive"
 
 // Folder containing logs
@@ -32,6 +30,7 @@ global dodir_par_par   "${root}/2_code/PS_Parents"
 // Assets
 global clean_apprenticeships "${root}/4_assets/clean_apprenticeships"
 global parental_occupation_cleaning_new "${root}/4_assets/Parental_occupation_cleaning_new"
+global data_to_merge   "${root}/4_assets/to_merge"
 
 // Additional parameters
 global download_ps "no"
