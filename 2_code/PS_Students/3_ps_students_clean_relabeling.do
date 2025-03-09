@@ -21,9 +21,9 @@
 * without prior written consent.
 ********************************************************************************
 
-*---------------------------------------------------------------
+********************************************************************************
 * 0. HOUSEKEEPING & LOGGING
-*---------------------------------------------------------------
+********************************************************************************
 clear all
 set more off
 version 18.0
@@ -42,237 +42,174 @@ log using "${dodir_log}/3_ps_students_clean_relabeling.log", replace text
 timer clear
 timer on 1
 
-*---------------------------------------------------------------
+* Display execution start
+di as txt "======================================================="
+di as txt "STARTING: PS Students Clean Relabeling"
+di as txt "======================================================="
+di as txt "Current time: $S_TIME $S_DATE"
+
+********************************************************************************
 * 1. LOAD THE CLEANED DATA
-*---------------------------------------------------------------
+********************************************************************************
 di as txt "----- Loading dataset: ps_stu_cleaned.dta -----"
+
+* Check if input file exists
+capture confirm file "${processed_data}/PS_Students/2_ps_students.dta"
+if _rc {
+    di as error "ERROR: Input file not found: ${processed_data}/PS_Students/2_ps_students.dta"
+    di as error "Run 2_ps_students_remove_duplicates.do first."
+    exit 601
+}
+
 use "${processed_data}/PS_Students/2_ps_students.dta", clear
 
 di as txt "Observations: `c(N)'"
 di as txt "Variables:    `c(k)'"
 if _N == 0 {
     di as error "ERROR: No observations found in ps_stu_cleaned.dta."
-    error 602
+    exit 602
 }
 
-*---------------------------------------------------------------
-* 2. CLEAN & CREATE DURATION VARIABLES
-*---------------------------------------------------------------
+********************************************************************************
+* 2. CONVERT STRING VARIABLES & CREATE DURATION VARIABLES
+********************************************************************************
+di as txt "----- Converting string variables & creating duration variables -----"
 
 *--- Convert string variables to numeric if needed ---
-capture confirm variable contract
-if !_rc {
-    destring contract, replace
-}
-capture confirm variable female
-if !_rc {
-    destring female, replace
+foreach var in contract female {
+    capture confirm variable `var'
+    if !_rc {
+        capture confirm string variable `var'
+        if !_rc {
+            di as txt "Converting `var' from string to numeric..."
+            destring `var', replace
+            di as txt "  Conversion complete."
+        }
+        else {
+            di as txt "Variable `var' is already numeric, no conversion needed."
+        }
+    }
+    else {
+        di as txt "Variable `var' not found in dataset, skipping."
+    }
 }
 
 *--- Create indicator for EL ---
-gen el = (contract == 1)
-label var el "EL"
+di as txt "Creating EL indicator variable..."
+capture confirm variable el
+if _rc == 0 {
+    di as txt "Variable 'el' already exists, updating values."
+    replace el = (contract == 1)
+} 
+else {
+    di as txt "Creating new 'el' variable."
+    gen el = (contract == 1)
+}
+label var el "EL (1 if contract==1, else 0)"
 
 *--- Create overall duration (minutes) if available ---
+di as txt "Creating duration_mins variable..."
 capture confirm variable Duration__in_seconds_
 if !_rc {
-    gen duration_mins = Duration__in_seconds_ / 60
-    label var duration_mins "Total duration (mins)"
+    capture confirm variable duration_mins
+    if _rc == 0 {
+        di as txt "Variable 'duration_mins' already exists, updating values."
+        replace duration_mins = Duration__in_seconds_ / 60
+    } 
+    else {
+        di as txt "Creating new 'duration_mins' variable."
+        gen duration_mins = Duration__in_seconds_ / 60
+    }
+    label var duration_mins "Total duration (minutes)"
 }
-/*
+else {
+    di as txt "Variable 'Duration__in_seconds_' not found, cannot create duration_mins."
+}
+
 *--- Create duration variables from click timestamps ---
-* Identify variables matching t_*_First_Click:
+di as txt "Creating page-specific duration variables..."
 ds t_*_First_Click
-local firstClickVars `r(varlist)'
-if "`firstClickVars'" != "" {
-    foreach var of local firstClickVars {
-        quietly count if missing(`var')
-        if r(N) == _N {
-            di as txt "`var' is missing"
-        }
-        else {
-            di as txt "`var' is not missing"
-            * Remove the prefix "t_" and the suffix "_First_Click" to form a base name:
-            local base : subinstr local var "t_" "", all
-            local base : subinstr local base "_First_Click" "", all
-            * Check for the corresponding Page_Submit variable:
-            capture confirm variable `base'_Page_Submit
-            if !_rc {
-                gen duration_`base' = (`base'_Page_Submit) / 60
+local first_click_vars `r(varlist)'
+
+if "`first_click_vars'" != "" {
+    di as txt "Found `=wordcount("`first_click_vars'")' First_Click variables."
+    
+    foreach var of local first_click_vars {
+        * Extract base name without prefix and suffix
+        local base = subinstr("`var'", "t_", "", 1)
+        local base = subinstr("`base'", "_First_Click", "", 1)
+        
+        * Check for corresponding Page_Submit variable
+        capture confirm variable `base'_Page_Submit
+        if !_rc {
+            di as txt "Creating duration variable for `base'..."
+            capture gen duration_`base' = (`base'_Page_Submit) / 60
+            if _rc {
+                di as error "Error creating duration_`base': `_rc'"
             }
             else {
-                di as error "Warning: Matching variable `base'_Page_Submit not found for `var'"
+                di as txt "  Created duration_`base'."
             }
         }
     }
 }
+else {
+    di as txt "No t_*_First_Click variables found, skipping duration variable creation."
+}
 
-*--- Label the newly created duration variables ---
-* We define a local macro of label pairs (format: varname:Label) separated by semicolons.
-* Note: this line CANNOT be split across multiple lines. Else it will not work.
-local durLabels "duration_consent1:Consent page 1;duration_sure:Sure;duration_consent2:Consent page 2;duration_background_1_:Background page 1;duration_background_2_:Background page 2;duration_child_prefs_1:Own prefs page 1;duration_child_prefs_2:Own prefs page 2;duration_mother_prefs_1:Mothers prefs page 1;duration_mother_prefs_2:Mother's prefs page 2;duration_father_prefs_1:Father's prefs page 1;duration_father_prefs_2:Father's prefs page 2;duration_motivation_child:Own motivation factors;duration_motivation_mother:Mother's motivation factors;duration_motivation_father:Father's motivation factors;duration_beliefs_1_:Beliefs page 1;duration_beliefs_2_:Beliefs page 2;duration_debriefing_1:Debriefing page 1;duration_debriefing_2:Debriefing page 2;duration_contract_occ_:Contract occupation;duration_ta_occs_:TA occupations;duration_reject_occs_:Rejection occupations;duration_apply_:Application occupations;duration_offers_:Offers occupations;duration_perc_contract_:Advantages/disadvantages of contract occ;duration_perc_disadv_hc_:Advantages/disadvantages of HC;duration_suggest_hc_:Suggestion HC (no contract or TA);duration_no_consider_hc_:Why considered or not HC"
+*--- Label the duration variables ---
+di as txt "Labeling duration variables..."
 
-* Tokenize the durLabels string using semicolon as delimiter.
-tokenize "`durLabels'", parse(";")
-while "`1'" != "" {
-    local pair = "`1'"
-    local delimpos = strpos("`pair'", ":")
-    if `delimpos' > 0 {
-        * Extract the variable name (from beginning up to the colon)
-        local varname = substr("`pair'", 1, `delimpos' - 1)
-        * Extract the label (everything after the colon)
-        local lbl = substr("`pair'", `delimpos' + 1, .)
+* Map of duration variable names to labels
+local duration_labels = "duration_consent1:Consent page 1;duration_sure:Sure;duration_consent2:Consent page 2;" + ///
+                       "duration_background_1_:Background page 1;duration_background_2_:Background page 2;" + ///
+                       "duration_child_prefs_1:Own prefs page 1;duration_child_prefs_2:Own prefs page 2;" + ///
+                       "duration_mother_prefs_1:Mothers prefs page 1;duration_mother_prefs_2:Mother's prefs page 2;" + ///
+                       "duration_father_prefs_1:Father's prefs page 1;duration_father_prefs_2:Father's prefs page 2;" + ///
+                       "duration_motivation_child:Own motivation factors;duration_motivation_mother:Mother's motivation factors;" + ///
+                       "duration_motivation_father:Father's motivation factors;duration_beliefs_1_:Beliefs page 1;" + ///
+                       "duration_beliefs_2_:Beliefs page 2;duration_debriefing_1:Debriefing page 1;" + ///
+                       "duration_debriefing_2:Debriefing page 2;duration_contract_occ_:Contract occupation;" + ///
+                       "duration_ta_occs_:TA occupations;duration_reject_occs_:Rejection occupations;" + ///
+                       "duration_apply_:Application occupations;duration_offers_:Offers occupations;" + ///
+                       "duration_perc_contract_:Advantages/disadvantages of contract occ;" + ///
+                       "duration_perc_disadv_hc_:Advantages/disadvantages of HC;" + ///
+                       "duration_suggest_hc_:Suggestion HC (no contract or TA);" + ///
+                       "duration_no_consider_hc_:Why considered or not HC;" + ///
+                       "duration_suggest_hc_2_:Suggestion HC (no contract, but TA);" + ///
+                       "duration_no_appr_hc_:Why no TA in HC;" + ///
+                       "duration_concern_contract_:Others' concerns p1 (contract);" + ///
+                       "duration_reason_concern_:Others' concerns p2 (contract);" + ///
+                       "duration_social_skills_:Social skills;duration_gender_id:Gender identity;" + ///
+                       "duration_belief_society_:Societal perception;duration_ses_1:SES page 1;" + ///
+                       "duration_ses_2_:SES page 2;duration_end:Final page"
+
+* Parse the duration_labels string and apply labels
+foreach pair of local duration_labels {
+    if strpos("`pair'", ":") > 0 {
+        local varname = substr("`pair'", 1, strpos("`pair'", ":") - 1)
+        local lbl = substr("`pair'", strpos("`pair'", ":") + 1, .)
+        
         capture confirm variable `varname'
         if !_rc {
             label variable `varname' "`lbl'"
+            di as txt "  Labeled `varname' as '`lbl''"
         }
     }
-    macro shift
-}
-*/
-*---------------------------------------------------------------
-* 2. CLEAN & CREATE DURATION VARIABLES_jelke edit (for now)
-*---------------------------------------------------------------
-*Make duration variables
-ds t_*_First_Click
-ds `r(varlist)'
-foreach var of varlist `r(varlist)' {
-    count if missing(`var')
-    if r(N) == _N {
-        display "`var' is missing"
-    } 
-    else {
-        display "`var' is not missing"
-        local varname_stripped : subinstr local var "_First_Click" ""
-		local varname: subinstr local varname_stripped "t_" ""
-		gen duration_`varname' = .
-		replace duration_`varname' = (`varname_stripped'_Page_Submit)/60
-    }
 }
 
-* Label the variables if they exist
-ds duration_*
-
-foreach var of varlist `r(varlist)' {
-    if "`var'" == "duration_consent1" {
-        label variable `var' "Consent page 1"
-    }
-    else if "`var'" == "duration_sure" {
-        label variable `var' "Sure"
-    }
-    else if "`var'" == "duration_consent2" {
-        label variable `var' "Consent page 2"
-    }
-    else if "`var'" == "duration_background_1_" {
-        label variable `var' "Background page 1"
-    }
-    else if "`var'" == "duration_background_2_" {
-        label variable `var' "Background page 2"
-    }
-	else if "`var'" == "duration_child_prefs_1" {
-        label variable `var' "Own prefs page 1"
-    }
-	else if "`var'" == "duration_child_prefs_2" {
-        label variable `var' "Own prefs page 2"
-    }
-	else if "`var'" == "duration_mother_prefs_1" {
-        label variable `var' "Mothers prefs page 1"
-    }
-	else if "`var'" == "duration_mother_prefs_2" {
-        label variable `var' "Mother's prefs page 2"
-    }
-	else if "`var'" == "duration_father_prefs_1" {
-        label variable `var' "Father's prefs page 1"
-    }
-	else if "`var'" == "duration_father_prefs_2" {
-        label variable `var' "Father's prefs page 2"
-    }
-	else if "`var'" == "duration_motivation_child" {
-        label variable `var' "Own motivation factors"
-    }
-	else if "`var'" == "duration_motivation_mother" {
-        label variable `var' "Mother's motivation factors"
-    }
-	else if "`var'" == "duration_motivation_father" {
-        label variable `var' "Father's motivation factors"
-    }
-	else if "`var'" == "duration_beliefs_1_" {
-        label variable `var' "Beliefs page 1"
-    }
-	else if "`var'" == "duration_beliefs_2_" {
-        label variable `var' "Beliefs page 2"
-    }
-    else if "`var'" == "duration_debriefing_1" {
-        label variable `var' "Debriefing page 1"
-    }
-    else if "`var'" == "duration_debriefing_2" {
-        label variable `var' "Debriefing page 2"
-    }
-	else if "`var'" == "duration_contract_occ_" {
-        label variable `var' "Contract occupation"
-    }
-	else if "`var'" == "duration_ta_occs_" {
-        label variable `var' "TA occupations"
-    }
-	else if "`var'" == "duration_reject_occs_" {
-        label variable `var' "Rejection occupations"
-    }
-	else if "`var'" == "duration_apply_" {
-        label variable `var' "Application occupations"
-    }
-	else if "`var'" == "duration_offers_" {
-        label variable `var' "Offers occupations"
-    }
-	else if "`var'" == "duration_perc_contract_" {
-        label variable `var' "Advantages/disadvantages of contract occ"
-    }
-	else if "`var'" == "duration_perc_disadv_hc_" {
-        label variable `var' "Advantages/disadvantages of HC"
-    }
-	else if "`var'" == "duration_suggest_hc_" {
-        label variable `var' "Suggestion HC (no contract or TA)"
-    }
-	else if "`var'" == "duration_no_consider_hc_" {
-        label variable `var' "Why considered or not HC"
-    }
-	else if "`var'" == "duration_suggest_hc_2_" {
-        label variable `var' "Suggestion HC (no contract, but TA)"
-    }
-	else if "`var'" == "duration_no_appr_hc_" {
-        label variable `var' "Why no TA in HC"
-    }
-	else if "`var'" == "duration_concern_contract_" {
-        label variable `var' "Others' concerns p1 (contract)"
-    }
-	else if "`var'" == "duration_reason_concern_" {
-        label variable `var' "Others' concerns p2 (contract)"
-    }
-	else if "`var'" == "duration_social_skills_" {
-        label variable `var' "Social skills"
-    }
-	else if "`var'" == "duration_gender_id" {
-        label variable `var' "Gender identity"
-    }
-	else if "`var'" == "duration_belief_society_" {
-        label variable `var' "Societal perception"
-    }
-	else if "`var'" == "duration_ses_1" {
-        label variable `var' "SES page 1"
-    }
-	else if "`var'" == "duration_ses_2_" {
-        label variable `var' "SES page 2"
-    }
-    else if "`var'" == "duration_end" {
-        label variable `var' "Final page"
-    }
-}
-*---------------------------------------------------------------
+********************************************************************************
 * 3. CLEAN HOME SITUATION
-*---------------------------------------------------------------
+********************************************************************************
+di as txt "----- Cleaning home situation variables -----"
+
 capture confirm variable home_sit
 if !_rc {
+    di as txt "Renaming and labeling home_sit variable..."
     rename home_sit home_sit_stu
-    label define home_sit_stu_lab ///
+    
+    * Define label for home situation
+    capture label define home_sit_stu_lab ///
         1 "Both parents" ///
         2 "Sometimes mother, sometimes father" ///
         3 "Only mother, contact with father" ///
@@ -280,35 +217,80 @@ if !_rc {
         5 "Only mother, no contact with father" ///
         6 "Only father, no contact with mother" ///
         7 "Other", replace
+        
+    * Apply label
     label values home_sit_stu home_sit_stu_lab
+    di as txt "  home_sit_stu labeled with `=r(k)' categories."
+}
+else {
+    di as txt "home_sit variable not found, skipping home situation cleaning."
 }
 
-*---------------------------------------------------------------
+********************************************************************************
 * 4. RELABELING TRACKS & SCHOOL TRACK OVERVIEW
-*---------------------------------------------------------------
+********************************************************************************
+di as txt "----- Cleaning and standardizing track variables -----"
+
 capture confirm variable track_1
 if !_rc {
-    decode track_1, gen(r_canton)
-    decode track_2, gen(r_school_track_name)
+    di as txt "Processing track and canton variables..."
     
-    * Check if decoded canton differs from existing "canton" (unless canton is "Grigioni")
-    count if !missing(canton) & (r_canton != canton & canton != "Grigioni")
-    if r(N) > 0 {
-         di as txt "Warning: " r(N) " observations: decoded canton does not match 'canton'. Replacing 'canton' with decoded value."
+    * Decode track variables to get string versions
+    capture decode track_1, gen(r_canton)
+    capture decode track_2, gen(r_school_track_name)
+    
+    * Check if canton variable exists and update if needed
+    capture confirm variable canton
+    if !_rc {
+        di as txt "Updating canton variable with values from track_1..."
+        
+        * Count mismatches for reporting
+        count if !missing(canton) & (r_canton != canton & canton != "Grigioni")
+        local mismatch_count = r(N)
+        if `mismatch_count' > 0 {
+            di as txt "  Warning: `mismatch_count' observations have canton different from track_1 decoded value."
+        }
+        
+        replace canton = r_canton if !missing(r_canton)
     }
-    replace canton = r_canton
+    else {
+        di as txt "Canton variable not found, creating from track_1..."
+        rename r_canton canton
+    }
     drop r_canton
-
-    * Check if decoded school track name differs from school_type (except when school_type is "Karışik")
-    count if !missing(school_type) & (r_school_track_name != school_type & school_type != "Karışik")
-    if r(N) > 0 {
-         di as txt "Warning: " r(N) " observations: decoded school track name does not match 'school_type'. Replacing 'school_type' with decoded value."
+    
+    * Check if school type exists and update
+    capture confirm variable school_type
+    if !_rc {
+        di as txt "Updating school_type variable with values from track_2..."
+        
+        * Count mismatches for reporting
+        count if !missing(school_type) & (r_school_track_name != school_type & school_type != "Karışik")
+        local mismatch_count = r(N)
+        if `mismatch_count' > 0 {
+            di as txt "  Warning: `mismatch_count' observations have school_type different from track_2 decoded value."
+        }
+        
+        rename r_school_track_name school_track_name
+        replace school_type = school_track_name if !missing(school_track_name)
     }
-    rename r_school_track_name school_track_name
-    replace school_type = school_track_name
-
-    * Encode final track variable based on standardized values:
-    gen track = .
+    else {
+        di as txt "school_type variable not found, creating from track_2..."
+        rename r_school_track_name school_type
+        gen school_track_name = school_type
+    }
+    
+    * Create standardized track variable
+    di as txt "Creating standardized track variable..."
+    capture confirm variable track
+    if _rc == 0 {
+        di as txt "  track variable already exists, updating values."
+    }
+    else {
+        di as txt "  Creating new track variable."
+        gen track = .
+    }
+    
     replace track = 1 if school_type == "low"
     replace track = 2 if school_type == "middle"
     replace track = 3 if school_type == "intermediate"
@@ -316,167 +298,412 @@ if !_rc {
     replace track = 5 if school_type == "mixed"
     replace track = 6 if school_type == "other"
     
-    label define track_labels 1 "Low" 2 "Middle" 3 "Intermediate" 4 "High" 5 "Mixed" 6 "Other", replace
+    * Label the track variable
+    capture label define track_labels 1 "Low" 2 "Middle" 3 "Intermediate" 4 "High" 5 "Mixed" 6 "Other", replace
     label values track track_labels
     label var track "School track"
+    
+    di as txt "  track variable created and labeled."
+}
+else {
+    di as txt "track_1 variable not found, skipping track standardization."
 }
 
-*---------------------------------------------------------------
+********************************************************************************
 * 5. RELABELING MATH & LANGUAGE VARIABLES
-*---------------------------------------------------------------
-* Rename trailing-underscore variables if they exist:
-capture confirm variable math_level_
-if !_rc {
-    rename math_level_ math_level
-}
-capture confirm variable lang_level_
-if !_rc {
-    rename lang_level_ lang_level
-}
-capture confirm variable math_grade_
-if !_rc {
-    rename math_grade_ math_grade
-}
-capture confirm variable lang_grade_
-if !_rc {
-    rename lang_grade_ lang_grade
+********************************************************************************
+di as txt "----- Cleaning math, language, and related variables -----"
+
+* Rename variables with trailing underscores
+foreach var in math_level_ lang_level_ math_grade_ lang_grade_ {
+    capture confirm variable `var'
+    if !_rc {
+        local newname = substr("`var'", 1, length("`var'") - 1)
+        di as txt "Renaming `var' to `newname'..."
+        rename `var' `newname'
+    }
 }
 
-* Rename sdq variables for i = 1 to 6:
+* Rename SDQ variables
 forval i = 1/6 {
     capture confirm variable sdq__`i'
     if !_rc {
+        di as txt "Renaming sdq__`i' to sdq_`i'..."
         rename sdq__`i' sdq_`i'
     }
 }
 
-* Rename plan variable and recode sit variable:
+* Rename plan variable
 capture confirm variable plan_
 if !_rc {
+    di as txt "Renaming plan_ to plan..."
     rename plan_ plan
 }
-gen sit = .
-replace sit = 1 if sit_ == 1
-replace sit = 2 if sit_ == 2
-replace sit = 4 if sit_ == 3
-drop sit_
 
-*---------------------------------------------------------------
+* Recode sit variable
+di as txt "Recoding sit variable..."
+capture confirm variable sit_
+if !_rc {
+    di as txt "Creating standardized sit variable from sit_..."
+    gen sit = .
+    replace sit = 1 if sit_ == 1
+    replace sit = 2 if sit_ == 2
+    replace sit = 4 if sit_ == 3
+    drop sit_
+    label var sit "Situation (standardized)"
+}
+else {
+    di as txt "sit_ variable not found, skipping sit recoding."
+}
+
+********************************************************************************
 * 6. CLEANING SWISSBORN & MIGRATION BACKGROUND
-*---------------------------------------------------------------
+********************************************************************************
+di as txt "----- Cleaning migration background variables -----"
+
+* Create standardized Swiss-born variables
+di as txt "Creating standardized Swiss-born variables..."
+
+* Child's Swiss-born status
 gen swissborn_child = .
-replace swissborn_child = swissborn_family_1 if !missing(swissborn_family_1)
-replace swissborn_child = swissborn_mother_1 if !missing(swissborn_mother_1)
-replace swissborn_child = swissborn_father_1 if !missing(swissborn_father_1)
-replace swissborn_child = swissborn_child_ if !missing(swissborn_child_)
+label var swissborn_child "Child born in Switzerland"
 
+foreach var in swissborn_family_1 swissborn_mother_1 swissborn_father_1 swissborn_child_ {
+    capture confirm variable `var'
+    if !_rc {
+        di as txt "  Using `var' to populate swissborn_child..."
+        replace swissborn_child = `var' if !missing(`var')
+    }
+}
+
+* Mother's Swiss-born status
 gen swissborn_mother = .
-replace swissborn_mother = swissborn_family_2 if !missing(swissborn_family_2)
-replace swissborn_mother = swissborn_mother_2 if !missing(swissborn_mother_2)
+label var swissborn_mother "Mother born in Switzerland"
 
+foreach var in swissborn_family_2 swissborn_mother_2 {
+    capture confirm variable `var'
+    if !_rc {
+        di as txt "  Using `var' to populate swissborn_mother..."
+        replace swissborn_mother = `var' if !missing(`var')
+    }
+}
+
+* Father's Swiss-born status
 gen swissborn_father = .
-replace swissborn_father = swissborn_family_3 if !missing(swissborn_family_3)
-replace swissborn_father = swissborn_father_2 if !missing(swissborn_father_2)
+label var swissborn_father "Father born in Switzerland"
 
-drop swissborn_family* swissborn_mother_* swissborn_father_* swissborn_child_
+foreach var in swissborn_family_3 swissborn_father_2 {
+    capture confirm variable `var'
+    if !_rc {
+        di as txt "  Using `var' to populate swissborn_father..."
+        replace swissborn_father = `var' if !missing(`var')
+    }
+}
 
-* Decode birthplace variables and rename appropriately:
-decode birthplace_mother, gen(r_birthplace_mother)
-decode birthplace_father1_, gen(r_birthplace_father1)
-decode birthplace_father2, gen(r_birthplace_father2)
-drop birthplace_mother birthplace_father1_ birthplace_father2
-rename r_birthplace_mother birthplace_mother
+* Drop original variables
+foreach var in swissborn_family_* swissborn_mother_* swissborn_father_* swissborn_child_ {
+    capture drop `var'
+}
 
+* Process birthplace variables
+di as txt "Processing birthplace variables..."
+
+* Handle mother's birthplace
+capture confirm variable birthplace_mother
+if !_rc {
+    di as txt "  Processing mother's birthplace..."
+    decode birthplace_mother, gen(r_birthplace_mother)
+    drop birthplace_mother
+    rename r_birthplace_mother birthplace_mother
+    label var birthplace_mother "Mother's birthplace"
+}
+
+* Handle father's birthplace (might be in different variables)
 gen birthplace_father = ""
-replace birthplace_father = r_birthplace_father1 if !missing(r_birthplace_father1)
-replace birthplace_father = r_birthplace_father2 if !missing(r_birthplace_father2)
-drop r_birthplace_father1 r_birthplace_father2
+label var birthplace_father "Father's birthplace"
 
-*---------------------------------------------------------------
+foreach var in birthplace_father1_ birthplace_father2 {
+    capture confirm variable `var'
+    if !_rc {
+        di as txt "  Processing father's birthplace from `var'..."
+        decode `var', gen(r_`var')
+        replace birthplace_father = r_`var' if !missing(r_`var')
+        drop `var' r_`var'
+    }
+}
+
+********************************************************************************
 * 7. RELABELING PARENTS EDUCATION
-*---------------------------------------------------------------
-decode educ_parent1, gen(field_educ_mother)
-decode educ_parent2, gen(field_educ_father)
-rename educ_parent1_7_TEXT field_educ_mother_text
-rename educ_parent2_7_TEXT field_educ_father_text
-drop educ_parent1* educ_parent2*
+********************************************************************************
+di as txt "----- Cleaning parent education variables -----"
 
-*---------------------------------------------------------------
+capture confirm variable educ_parent1
+if !_rc {
+    di as txt "Processing parent education variables..."
+    
+    * Decode education variables
+    decode educ_parent1, gen(field_educ_mother)
+    decode educ_parent2, gen(field_educ_father)
+    
+    * Handle text versions if they exist
+    capture confirm variable educ_parent1_7_TEXT
+    if !_rc {
+        rename educ_parent1_7_TEXT field_educ_mother_text
+    }
+    
+    capture confirm variable educ_parent2_7_TEXT
+    if !_rc {
+        rename educ_parent2_7_TEXT field_educ_father_text
+    }
+    
+    * Label new variables
+    label var field_educ_mother "Mother's field of education"
+    label var field_educ_father "Father's field of education"
+    
+    * Drop original variables
+    drop educ_parent1 educ_parent2
+    
+    di as txt "  Parent education variables processed."
+}
+else {
+    di as txt "educ_parent1 variable not found, skipping parent education relabeling."
+}
+
+********************************************************************************
 * 8. RELABELING PREFERENCES (OCCUPATIONAL)
-*---------------------------------------------------------------
-* Loop over a series of variables to rename them for clarity.
+********************************************************************************
+di as txt "----- Cleaning occupational preference variables -----"
+
+* Loop over preference variables to rename them for clarity
+di as txt "Standardizing preference variables..."
+
+* Process main preference variables
 forval i = 1/44 {
-    rename prefchild_m_`i' app_pref_m_`i'
-    rename prefchild_best_m_`i' app_pref_best_m_`i'
-    rename prefchild_f__`i' app_pref_f_`i'
-    rename prefchild_best_f__`i' app_pref_best_f_`i'
+    * Child preferences
+    capture confirm variable prefchild_m_`i'
+    if !_rc {
+        rename prefchild_m_`i' app_pref_m_`i'
+    }
     
-    rename prefmother_m__`i' mother_m_`i'
-    rename prefmother_f__`i' mother_f_`i'
-    rename prefmother_best_m__`i' mother_best_m_`i'
-    rename prefmother_best_f__`i' mother_best_f_`i'
+    capture confirm variable prefchild_best_m_`i'
+    if !_rc {
+        rename prefchild_best_m_`i' app_pref_best_m_`i'
+    }
     
-    rename preffather_m__`i' father_m_`i'
-    rename preffather_f__`i' father_f_`i'
-    capture rename preffather_best_m_`i' father_best_m_`i'
-    capture rename preffather_best_f__`i' father_best_f_`i'
-}
-forval i = 42/44 {
-    rename prefchild_m_`i'_TEXT       app_pref_m_`i'_TEXT
-    rename prefchild_best_m_`i'_TEXT app_pref_best_m_`i'_TEXT
-    rename prefchild_f__`i'          app_pref_f_`i'_TEXT
-    rename prefchild_best_f__`i'     app_pref_best_f_`i'_TEXT
+    capture confirm variable prefchild_f__`i'
+    if !_rc {
+        rename prefchild_f__`i' app_pref_f_`i'
+    }
     
-    rename prefmother_m__`i'_TEXT       mother_m_`i'_TEXT
-    rename prefmother_f__`i'_TEXT       mother_f_`i'_TEXT
-    rename prefmother_best_m__`i'_TEXT  mother_best_m_`i'_TEXT
-    rename prefmother_best_f__`i'_TEXT  mother_best_f_`i'_TEXT
+    capture confirm variable prefchild_best_f__`i'
+    if !_rc {
+        rename prefchild_best_f__`i' app_pref_best_f_`i'
+    }
     
-    rename preffather_m__`i'_TEXT       father_m_`i'_TEXT
-    rename preffather_f__`i'_TEXT       father_f_`i'_TEXT
-    capture rename preffather_best_m_`i'_TEXT   father_best_m_`i'_TEXT
-    capture rename preffather_best_f__`i'_TEXT   father_best_f_`i'_TEXT
+    * Mother preferences
+    capture confirm variable prefmother_m__`i'
+    if !_rc {
+        rename prefmother_m__`i' mother_m_`i'
+    }
+    
+    capture confirm variable prefmother_f__`i'
+    if !_rc {
+        rename prefmother_f__`i' mother_f_`i'
+    }
+    
+    capture confirm variable prefmother_best_m__`i'
+    if !_rc {
+        rename prefmother_best_m__`i' mother_best_m_`i'
+    }
+    
+    capture confirm variable prefmother_best_f__`i'
+    if !_rc {
+        rename prefmother_best_f__`i' mother_best_f_`i'
+    }
+    
+    * Father preferences
+    capture confirm variable preffather_m__`i'
+    if !_rc {
+        rename preffather_m__`i' father_m_`i'
+    }
+    
+    capture confirm variable preffather_f__`i'
+    if !_rc {
+        rename preffather_f__`i' father_f_`i'
+    }
+    
+    capture confirm variable preffather_best_m_`i'
+    if !_rc {
+        rename preffather_best_m_`i' father_best_m_`i'
+    }
+    
+    capture confirm variable preffather_best_f__`i'
+    if !_rc {
+        rename preffather_best_f__`i' father_best_f_`i'
+    }
 }
 
-* Rename timer-related variables (if applicable)
+* Process text versions for preferences (42-44)
+di as txt "Standardizing preference text variables..."
+forval i = 42/44 {
+    * Child preferences text
+    capture confirm variable prefchild_m_`i'_TEXT
+    if !_rc {
+        rename prefchild_m_`i'_TEXT app_pref_m_`i'_TEXT
+    }
+    
+    capture confirm variable prefchild_best_m_`i'_TEXT
+    if !_rc {
+        rename prefchild_best_m_`i'_TEXT app_pref_best_m_`i'_TEXT
+    }
+    
+    capture confirm variable prefchild_f__`i'_TEXT
+    if !_rc {
+        rename prefchild_f__`i'_TEXT app_pref_f_`i'_TEXT
+    }
+    
+    capture confirm variable prefchild_best_f__`i'_TEXT
+    if !_rc {
+        rename prefchild_best_f__`i'_TEXT app_pref_best_f_`i'_TEXT
+    }
+    
+    * Mother preferences text
+    capture confirm variable prefmother_m__`i'_TEXT
+    if !_rc {
+        rename prefmother_m__`i'_TEXT mother_m_`i'_TEXT
+    }
+    
+    capture confirm variable prefmother_f__`i'_TEXT
+    if !_rc {
+        rename prefmother_f__`i'_TEXT mother_f_`i'_TEXT
+    }
+    
+    capture confirm variable prefmother_best_m__`i'_TEXT
+    if !_rc {
+        rename prefmother_best_m__`i'_TEXT mother_best_m_`i'_TEXT
+    }
+    
+    capture confirm variable prefmother_best_f__`i'_TEXT
+    if !_rc {
+        rename prefmother_best_f__`i'_TEXT mother_best_f_`i'_TEXT
+    }
+    
+    * Father preferences text
+    capture confirm variable preffather_m__`i'_TEXT
+    if !_rc {
+        rename preffather_m__`i'_TEXT father_m_`i'_TEXT
+    }
+    
+    capture confirm variable preffather_f__`i'_TEXT
+    if !_rc {
+        rename preffather_f__`i'_TEXT father_f_`i'_TEXT
+    }
+    
+    capture confirm variable preffather_best_m_`i'_TEXT
+    if !_rc {
+        rename preffather_best_m_`i'_TEXT father_best_m_`i'_TEXT
+    }
+    
+    capture confirm variable preffather_best_f__`i'_TEXT
+    if !_rc {
+        rename preffather_best_f__`i'_TEXT father_best_f_`i'_TEXT
+    }
+}
+
+* Rename timer-related variables
+di as txt "Standardizing timer-related variables..."
+
+* Process ta_occs, reject_ta, and offers2 variables
 forval i = 1/45 {
     foreach g in "m" "f" {
-        rename ta_occs_`g'__`i' ta_occs_`g'_`i'
-        rename reject_ta_`g'__`i' reject_ta_`g'_`i'
-        rename offers2_`g'__`i' offers2_`g'_`i'
-    }
-}
-forval i = 1/44 {
-    foreach g in "m" "f" {
-        rename apply_occs_`g'__`i' apply_occs_`g'_`i'
-    }
-}
-forval i = 43/45 {
-    foreach g in "m" "f" {
-        rename ta_occs_`g'__`i'_TEXT     ta_occs_`g'_`i'_TEXT
-        rename reject_ta_`g'__`i'_TEXT   reject_ta_`g'_`i'_TEXT
-        rename offers2_`g'__`i'_TEXT     offers2_`g'_`i'_TEXT
-    }
-}
-forval i = 42/44 {
-    foreach g in "m" "f" {
-        rename apply_occs_`g'__`i'_TEXT apply_occs_`g'_`i'_TEXT
+        capture confirm variable ta_occs_`g'__`i'
+        if !_rc {
+            rename ta_occs_`g'__`i' ta_occs_`g'_`i'
+        }
+        
+        capture confirm variable reject_ta_`g'__`i'
+        if !_rc {
+            rename reject_ta_`g'__`i' reject_ta_`g'_`i'
+        }
+        
+        capture confirm variable offers2_`g'__`i'
+        if !_rc {
+            rename offers2_`g'__`i' offers2_`g'_`i'
+        }
     }
 }
 
-*---------------------------------------------------------------
+* Process apply_occs variables
+forval i = 1/44 {
+    foreach g in "m" "f" {
+        capture confirm variable apply_occs_`g'__`i'
+        if !_rc {
+            rename apply_occs_`g'__`i' apply_occs_`g'_`i'
+        }
+    }
+}
+
+* Process text versions for timer-related variables
+forval i = 43/45 {
+    foreach g in "m" "f" {
+        capture confirm variable ta_occs_`g'__`i'_TEXT
+        if !_rc {
+            rename ta_occs_`g'__`i'_TEXT ta_occs_`g'_`i'_TEXT
+        }
+        
+        capture confirm variable reject_ta_`g'__`i'_TEXT
+        if !_rc {
+            rename reject_ta_`g'__`i'_TEXT reject_ta_`g'_`i'_TEXT
+        }
+        
+        capture confirm variable offers2_`g'__`i'_TEXT
+        if !_rc {
+            rename offers2_`g'__`i'_TEXT offers2_`g'_`i'_TEXT
+        }
+    }
+}
+
+forval i = 42/44 {
+    foreach g in "m" "f" {
+        capture confirm variable apply_occs_`g'__`i'_TEXT
+        if !_rc {
+            rename apply_occs_`g'__`i'_TEXT apply_occs_`g'_`i'_TEXT
+        }
+    }
+}
+
+********************************************************************************
 * 9. SURVEY COMPLETION INDICATOR
-*---------------------------------------------------------------
+********************************************************************************
+di as txt "----- Creating survey completion indicator -----"
+
 gen compl_end = 1 if t_ses_1_Page_Submit != .
 label var compl_end "Completed final questions"
 
-*---------------------------------------------------------------
+********************************************************************************
 * 10. FINAL HOUSEKEEPING & SAVE
-*---------------------------------------------------------------
+********************************************************************************
 di as txt "----- Compressing and saving dataset -----"
+
+* Clean up leftover First_Click, Last_Click, etc. variables
+drop *_First_Click* *_Last_Click* *_Page_Submit* *_Click_Count* 
+
+* Clean up Duration__in_seconds if it exists
+capture drop Duration__in_seconds_
+
+* Compress and save
 compress
 save "${processed_data}/PS_Students/3_ps_students.dta", replace
+
+* Final report
+di as txt "Cleaned and relabeled dataset saved to: ${processed_data}/PS_Students/3_ps_students.dta"
+di as txt "Observations: `=_N'"
+di as txt "Variables: `=c(k)'"
+di as txt "======================================================="
+di as txt "COMPLETED: PS Students Clean Relabeling"
+di as txt "======================================================="
 
 timer off 1
 timer list
 log close
+set trace off

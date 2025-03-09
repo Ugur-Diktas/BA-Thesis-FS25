@@ -13,9 +13,12 @@
 * without prior written consent.
 ********************************************************************************
 
-global root "`c(pwd)'"
+// Use pwd to set root if not already defined
+if "$root" == "" {
+    global root "`c(pwd)'"
+}
 
-// Subfolders
+// Subfolders - data directories
 global raw_data        "${root}/1_data/raw"
 global processed_data  "${root}/1_data/processed"
 global sensitive_data  "${root}/1_data/sensitive"
@@ -27,11 +30,25 @@ global dodir_log       "${root}/3_logfiles"
 global dodir_par_stu   "${root}/2_code/PS_Students"
 global dodir_par_par   "${root}/2_code/PS_Parents"
 
-// Assets
+// Assets and supporting files
 global clean_apprenticeships "${root}/4_assets/clean_apprenticeships"
 global parental_occupation_cleaning_new "${root}/4_assets/Parental_occupation_cleaning_new"
 global data_to_merge   "${root}/4_assets/to_merge"
 
 // Additional parameters
-global download_ps "no"
-global debug "yes"
+global debug "no"      // Set to "yes" for verbose output and tracing
+
+// Create any missing directories
+foreach dir in "$raw_data" "$processed_data" "$sensitive_data" "$dodir_log" {
+    capture mkdir "`dir'"
+}
+
+// Create subdirectories for processed data
+capture mkdir "${processed_data}/PS_Students"
+capture mkdir "${processed_data}/PS_Parents"
+
+// Display configuration information
+di as text "Configuration loaded:"
+di as text "  Root directory: ${root}"
+di as text "  Debug mode: ${debug}"
+di as text "  Download new data: ${download_ps}"

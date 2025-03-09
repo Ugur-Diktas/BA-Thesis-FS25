@@ -10,15 +10,17 @@
 *     may be stored in different variables based on parent type
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 12.03.2025
+* Last edit: 09.03.2025
 * Version: Stata 18
 *
 * Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
+* This code is proprietary and may not be reproduced, distributed, or modified
+* without prior written consent.
 ********************************************************************************
 
-//----------------------------------------------------------------------------
+********************************************************************************
 // 0. HOUSEKEEPING
-//----------------------------------------------------------------------------
+********************************************************************************
 clear all
 set more off
 version 18.0
@@ -36,13 +38,31 @@ log using "${dodir_log}/9_ps_parents_clean_parent_occs.log", replace text
 timer clear
 timer on 1
 
-//----------------------------------------------------------------------------
+// Display execution start
+di as txt "======================================================="
+di as txt "STARTING: PS Parents Clean Parent Occupations"
+di as txt "======================================================="
+di as txt "Current time: $S_TIME $S_DATE"
+
+********************************************************************************
 // 1. LOAD AND PREPARE DATASET
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Loading dataset: 8_ps_parents.dta -----"
+
+// Check if input file exists
+capture confirm file "${processed_data}/PS_Parents/8_ps_parents.dta"
+if _rc {
+    di as error "ERROR: Input file not found: ${processed_data}/PS_Parents/8_ps_parents.dta"
+    di as error "Run 8_ps_parents_merge_chars.do first."
+    exit 601
+}
+
 use "${processed_data}/PS_Parents/8_ps_parents.dta", clear
+di as txt "Loaded dataset with `c(N)' observations and `c(k)' variables."
 
 // Initialize final variables
+di as txt "Initializing parent occupation variables..."
+
 capture confirm variable mother_occ_isced6_final
 if _rc {
     gen mother_occ_isced6_final = ""
@@ -68,9 +88,9 @@ if _rc {
     label var father_isced_num "ISCED field code for father"
 }
 
-//----------------------------------------------------------------------------
+********************************************************************************
 // 2. DETECT AND STANDARDIZE PARENT OCCUPATION VARIABLES
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Detecting parent occupation variables -----"
 
 // In parent dataset, occupation might be stored in different ways:
@@ -134,8 +154,7 @@ if !_rc {
     
     // If we found both own and partner occupation variables, create standardized ones
     if "`own_occ_var'" != "" & "`partner_occ_var'" != "" {
-        // If parent type = 1 (mother), own = mother, partner = father
-        // If parent type = 2 (father), own = father, partner = mother
+        di as txt "Creating standardized mother/father variables based on Parent_type_..."
         
         // Create temporary mother/father occupation variables
         gen temp_mother_occ = ""
@@ -154,14 +173,12 @@ if !_rc {
         
         local has_mother_occ = 1
         local has_father_occ = 1
-        
-        di as txt "Created standardized mother/father occupation variables based on Parent_type_"
     }
 }
 
-//----------------------------------------------------------------------------
+********************************************************************************
 // 3. DIRECT ISCED CODE ASSIGNMENT
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Assigning ISCED codes directly -----"
 
 // Process mother occupations if available
@@ -242,9 +259,9 @@ else {
     di as txt "No father occupation variable found."
 }
 
-//----------------------------------------------------------------------------
+********************************************************************************
 // 4. CREATE NUMERIC ISCED FIELDS
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Creating numeric ISCED fields -----"
 
 // Create numeric ISCED fields
@@ -261,7 +278,7 @@ foreach parent in mother father {
 }
 
 // Define value labels for ISCED fields
-label define isced_field_lbl ///
+capture label define isced_field_lbl ///
     1 "Gesundheit, Pflege, Betreuung und Ausbildung" ///
     2 "Dienstleistungen und Detailhandel" ///
     3 "Wirtschaft, Verwaltung und Recht" ///
@@ -270,117 +287,110 @@ label define isced_field_lbl ///
     6 "Landwirtschaft, Forstwirtschaft, Fischerei und Tiermedizin" ///
     -14 "Hausfrau/mann" ///
     -2 "None" ///
-    -8 "Doesn't know"
+    -8 "Doesn't know", replace
 
 label values mother_isced_num father_isced_num isced_field_lbl
 
-//----------------------------------------------------------------------------
+// Count the distribution of mother's occupations
+di as txt "Distribution of mother's occupations by ISCED field:"
+tab mother_isced_num
+
+// Count the distribution of father's occupations
+di as txt "Distribution of father's occupations by ISCED field:"
+tab father_isced_num
+
+********************************************************************************
 // 5. EXPORT UNMAPPED OCCUPATIONS FOR REFERENCE
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Exporting unmapped occupations for reference -----"
 
-// Simplified approach to export unmapped occupations
-// Store mother and father variable names for later use
-local mother_var_name = "`mother_var'"
-local father_var_name = "`father_var'"
+// Setup for unmapped export
+tempfile unmapped_combined
 
-if `has_mother_occ' | `has_father_occ' {
-    // Count unmapped occupations
-    local unmapped_count = 0
-    
-    if `has_mother_occ' {
-        count if !missing(`mother_var_name') & missing(mother_occ_isced6_final)
-        local unmapped_count = `unmapped_count' + r(N)
-    }
-    
-    if `has_father_occ' {
-        count if !missing(`father_var_name') & missing(father_occ_isced6_final)
-        local unmapped_count = `unmapped_count' + r(N)
-    }
-    
-    // If we have unmapped occupations, export them
-    if `unmapped_count' > 0 {
-        di as txt "Found `unmapped_count' unmapped occupations to export"
-        
-        preserve
-            clear
-            set obs `unmapped_count'
-            gen ResponseId = ""
-            gen parent_type = .
-            gen occupation = ""
-            gen occ_type = ""
+// Export unmapped mother occupations
+if `has_mother_occ' {
+    preserve
+        keep if !missing(`mother_var') & missing(mother_occ_isced6_final)
+        if _N > 0 {
+            di as txt "Found `=_N' unmapped mother occupations, exporting."
+            keep ResponseId `mother_var'
+            gen occ_type = "mother"
+            rename `mother_var' parent_occ
             
-            // Save empty dataset
-            save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace emptyok
-        restore
-        
-        // Add unmapped mother occupations
-        if `has_mother_occ' {
-            preserve
-                keep if !missing(`mother_var_name') & missing(mother_occ_isced6_final)
-                if _N > 0 {
-                    keep ResponseId Parent_type_ `mother_var_name'
-                    gen occ_type = "mother"
-                    rename `mother_var_name' occupation
-                    
-                    // Save to temporary file then append to main export
-                    tempfile mother_unmapped
-                    save `mother_unmapped'
-                    
-                    use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
-                    append using `mother_unmapped'
-                    save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace
-                }
-            restore
+            save `unmapped_combined', replace
         }
-        
-        // Add unmapped father occupations
-        if `has_father_occ' {
-            preserve
-                keep if !missing(`father_var_name') & missing(father_occ_isced6_final)
-                if _N > 0 {
-                    keep ResponseId Parent_type_ `father_var_name'
-                    gen occ_type = "father"
-                    rename `father_var_name' occupation
-                    
-                    // Save to temporary file then append to main export
-                    tempfile father_unmapped
-                    save `father_unmapped'
-                    
-                    use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
-                    append using `father_unmapped'
-                    save "${processed_data}/PS_Parents/unmapped_occupations.dta", replace
-                }
-            restore
+        else {
+            di as txt "No unmapped mother occupations found."
         }
-        
-        // Export the final unmapped list to Excel
-        preserve
-            use "${processed_data}/PS_Parents/unmapped_occupations.dta", clear
-            
-            if _N > 0 {
-                // Export to Excel
-                capture export excel ResponseId parent_type occ_type occupation using "${processed_data}/PS_Parents/unmapped_occupations.xlsx", ///
-                    firstrow(variables) replace
-                
-                if !_rc {
-                    di as txt "Exported unmapped occupations to ${processed_data}/PS_Parents/unmapped_occupations.xlsx"
-                }
-                else {
-                    di as error "Warning: Could not export to Excel. Error code: `_rc'"
-                }
-            }
-        restore
-    }
-    else {
-        di as txt "No unmapped occupations to export."
-    }
+    restore
 }
 
-//----------------------------------------------------------------------------
+// Export unmapped father occupations
+if `has_father_occ' {
+    preserve
+        keep if !missing(`father_var') & missing(father_occ_isced6_final)
+        if _N > 0 {
+            di as txt "Found `=_N' unmapped father occupations, exporting."
+            keep ResponseId `father_var'
+            gen occ_type = "father"
+            rename `father_var' parent_occ
+            
+            // Check if we have mother occupations to append
+            capture confirm file `unmapped_combined'
+            if !_rc {
+                // We have mother occupations, append father occupations
+                tempfile father_unmapped
+                save `father_unmapped'
+                
+                use `unmapped_combined', clear
+                append using `father_unmapped'
+                save `unmapped_combined', replace
+            }
+            else {
+                // No mother occupations, save father occupations as main file
+                save `unmapped_combined', replace
+            }
+        }
+        else {
+            di as txt "No unmapped father occupations found."
+        }
+    restore
+}
+
+// Export the combined unmapped occupations if any
+capture confirm file `unmapped_combined'
+if !_rc {
+    preserve
+        use `unmapped_combined', clear
+        
+        // Ensure processed_data/PS_Parents directory exists
+        capture mkdir "${processed_data}/PS_Parents"
+        
+        // Export to Excel
+        capture export excel ResponseId occ_type parent_occ using "${processed_data}/PS_Parents/unmapped_occupations.xlsx", ///
+            firstrow(variables) replace
+            
+        if !_rc {
+            di as txt "Exported unmapped occupations to ${processed_data}/PS_Parents/unmapped_occupations.xlsx"
+        }
+        else {
+            di as error "Warning: Could not export to Excel. Error code: `_rc'"
+        }
+    restore
+}
+else {
+    di as txt "No unmapped occupations to export."
+}
+
+********************************************************************************
 // 6. SAVE FINAL DATASET
-//----------------------------------------------------------------------------
+********************************************************************************
 di as txt "----- Saving final dataset -----"
+
+// Drop temporary variables if they exist
+foreach var in temp_mother_occ temp_father_occ {
+    capture drop `var'
+}
 
 // Final verification
 count if !missing(mother_occ_isced6_final)
@@ -388,10 +398,19 @@ di as txt "Mother occupations with ISCED codes: `r(N)'"
 count if !missing(father_occ_isced6_final)
 di as txt "Father occupations with ISCED codes: `r(N)'"
 
-// Save final dataset
+// Compress and save final dataset
 compress
 save "${processed_data}/PS_Parents/9_ps_parents.dta", replace
+
+// Final report
+di as txt "Cleaned parent occupations dataset saved to: ${processed_data}/PS_Parents/9_ps_parents.dta"
+di as txt "Observations: `=_N'"
+di as txt "Variables: `=c(k)'"
+di as txt "======================================================="
+di as txt "COMPLETED: PS Parents Clean Parent Occupations"
+di as txt "======================================================="
 
 timer off 1
 timer list
 log close
+set trace off
