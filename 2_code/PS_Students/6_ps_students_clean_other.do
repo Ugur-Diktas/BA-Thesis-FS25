@@ -4,14 +4,12 @@
 * Data needed: 5_ps_students.dta
 * Data output: 6_ps_students.dta
 * Purpose:
-*   - Cleans "other" occupation textboxes and standardizes them using the 
-*     clean_apprenticeships.do mapping system.
+*   - Cleans "other" occupation textboxes and standardizes them
 *   - Performs basic cleaning (removes line breaks, standardizes formatting) 
-*   - Exports a review table of unmatched apprenticeship entries for manual review
-*   - Updates the crosswalk dataset to include new apprenticeship entries
+*   - Processes the plan variable through the clean_apprenticeships system
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 09.03.2025
+* Last edit: 13.03.2025
 * Version: Stata 18
 *
 * Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.
@@ -26,7 +24,6 @@ clear all
 set more off
 version 18.0
 
-// Enable/disable trace based on debug flag
 if ("${debug}" == "yes") {
     set trace on
 }
@@ -106,34 +103,7 @@ rename labb_code_1 plan_code
 rename app_official_1 plan_cleaned
 
 //----------------------------------------------------------------------------
-// 4. EXPORT REVIEW TABLE
-//----------------------------------------------------------------------------
-di as txt "----- Creating review table of apprenticeship responses -----"
-preserve
-    keep ResponseId plan plan_code plan_cleaned
-    keep if !missing(plan) & trim(plan) != ""
-    order ResponseId plan plan_code plan_cleaned
-    
-    // Export for review
-    export excel using "${processed_data}/PS_Students/apprenticeship_review.xlsx", ///
-        firstrow(variables) replace
-        
-    // Count unmatched entries for reporting
-    count if missing(plan_code)
-    local unmatched = r(N)
-    
-    if `unmatched' > 0 {
-        di as txt "IMPORTANT: `unmatched' apprenticeship entries need manual review"
-        di as txt "Please check ${processed_data}/PS_Students/apprenticeship_review.xlsx"
-        di as txt "and update Sheet2 in ${clean_apprenticeships}/clean apprenticeships.xlsx"
-    }
-    else {
-        di as txt "✓ All apprenticeship entries have been successfully matched"
-    }
-restore
-
-//----------------------------------------------------------------------------
-// 5. FINALIZATION & SAVING
+// 4. FINALIZATION & SAVING
 //----------------------------------------------------------------------------
 // Label the new variables
 label var plan_code "LABB code for plan"
