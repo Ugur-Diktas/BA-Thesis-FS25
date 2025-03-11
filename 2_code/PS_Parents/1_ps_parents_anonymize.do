@@ -12,7 +12,7 @@
 *   - Save an anonymised version of the data (with sensitive variables dropped).
 *
 * Author : Ugur Diktas, Jelke Clarysse, BA Thesis FS25
-* Last edit: 09.03.2025
+* Last edit: 10.03.2025
 * Version: Stata 18
 *
 * Copyright (C) 2025 Ugur Diktas, Jelke CLarysse. All rights reserved.

@@ -193,8 +193,94 @@ use "${processed_data}/PS_Students/7_ps_students.dta", clear
 di as txt "Loaded student data with `c(N)' observations and `c(k)' variables."
 
 ********************************************************************************
-// 3. MERGE STUDENT PREFERENCES WITH CHARACTERISTICS
+// 3. MERGE STUDENT PREFERENCES WITH CHARACTERISTICS_Jelke
 ********************************************************************************
+di as txt "----- Merging student preferences with characteristics -----"
+
+// Define list of preference variables to process
+local pref_vars "app_pref_best_m app_pref_best_f app_pref_m app_pref_f"
+local total_merged = 0
+
+// Process each preference variable
+foreach p of local pref_vars {
+    di as txt "Processing variable: `p'..."
+    
+    // Check if the preference variable exists
+    capture confirm variable `p'
+    if _rc {
+        di as txt "  Variable `p' not found. Skipping."
+        continue
+    }
+    
+    // Check if the variable has any non-missing values
+    count if !missing(`p')
+    if r(N) == 0 {
+        di as txt "  Variable `p' has no non-missing values. Skipping."
+        continue
+    }
+    
+    // Use the actual variable (`p`) as the merge key
+    gen temp_merge_key = `p'
+
+    // Merge with apprenticeship characteristics
+    merge m:1 temp_merge_key using "appchardata.dta", keep(match master) nogen
+    
+    // Debugging: Check if merge brought in expected variables
+    describe
+    list temp_merge_key female_grad skills_ave_math skills_ave_ownlang if _n <= 10
+
+    // Ensure merged variables exist before renaming
+    capture confirm variable female_grad
+    if _rc {
+        di as txt "  Merge failed or `p' did not match anything in appchardata. Skipping renaming."
+        drop temp_merge_key
+        continue
+    }
+    
+    // Count merged observations
+    count if !missing(female_grad) & !missing(`p')
+    local merged_count = r(N)
+    local total_merged = `total_merged' + `merged_count'
+    
+    // Clean up temporary merge key
+    drop temp_merge_key
+    
+    // Rename merged variables with the preference prefix for clarity
+    rename female_grad   `p'_female_share
+    rename skills_ave_math `p'_math_req
+    rename skills_ave_ownlang `p'_lang_req
+    
+    // Create own-gender share variable based on student gender
+    local p_lab: variable label `p'
+    if "`p_lab'" == "" {
+        local p_lab "`p'"
+    }
+    
+    // Verify female variable exists for own-gender share calculation
+    capture confirm variable female
+    if !_rc {
+        gen `p'_og_share = `p'_female_share if female == 1
+        replace `p'_og_share = 1 - `p'_female_share if female == 0
+        label var `p'_og_share "`p_lab' own gender share"
+    }
+    else {
+        di as txt "  Variable 'female' not found. Cannot create own-gender share."
+    }
+    
+    // Label the new variables
+    label var `p'_female_share  "`p_lab' female share"
+    label var `p'_math_req      "`p_lab' math requirements"
+    label var `p'_lang_req      "`p_lab' language requirements"
+    
+    di as txt "  Completed merge for: `p' - Added characteristics to `merged_count' observations."
+}
+
+di as txt "Total merged characteristics across all preferences: `total_merged'"
+
+********************************************************************************
+// 3. MERGE STUDENT PREFERENCES WITH CHARACTERISTICS_original
+********************************************************************************
+
 di as txt "----- Merging student preferences with characteristics -----"
 
 // Define list of preference variables to process
@@ -231,7 +317,7 @@ foreach p of local pref_vars {
     
     // Merge with apprenticeship characteristics
     merge m:1 temp_merge_key using `appchardata', ///
-        keep(match master) nogen
+        keep(match master) //nogen
     
     // Count merged observations
     count if !missing(female_grad) & !missing(`p'_code)
@@ -272,7 +358,7 @@ foreach p of local pref_vars {
 }
 
 di as txt "Total merged characteristics across all preferences: `total_merged'"
-
+*/
 ********************************************************************************
 // 4. FINAL HOUSEKEEPING & SAVE
 ********************************************************************************
